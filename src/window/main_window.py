@@ -35,6 +35,9 @@ class MainWindow(QMainWindow):
     settings_requested = Signal()
     chat_requested = Signal()
     quit_requested = Signal()
+    # 生命周期信号（用于语音触发等）
+    shown = Signal()
+    closing = Signal()
 
     def __init__(self, animation: AnimationManager, parent=None):
         super().__init__(parent)
@@ -220,8 +223,13 @@ class MainWindow(QMainWindow):
 
     # ── 生命周期 ────────────────────────────────────────────
 
+    def showEvent(self, event) -> None:
+        """窗口显示时发出信号（用于触发启动语音）。"""
+        super().showEvent(event)
+        self.shown.emit()
+
     def closeEvent(self, event) -> None:
-        """用户点击 X 时隐藏到托盘（不退出程序）。"""
-        logger.info("主窗口隐藏到后台")
+        """用户点击 X 时隐藏到托盘，触发关闭语音。"""
+        self.closing.emit()
         self.hide()
         event.ignore()

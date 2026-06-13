@@ -17,7 +17,7 @@ from PySide6.QtGui import QFont
 
 from qfluentwidgets import (
     MSFluentWindow, FluentIcon, SettingCardGroup,
-    SwitchSettingCard, SettingCard,
+    SwitchSettingCard, SettingCard, setTheme, Theme,
 )
 
 from src.core.config import ConfigManager
@@ -183,6 +183,24 @@ class _SettingsPage(_PageBase):
         self._scaling_card.hBoxLayout.addSpacing(16)
         group.addSettingCard(self._scaling_card)
 
+        # ── 主题设置 ────────────────────────────────────────
+        current_theme = config.get("main", "theme", "dark")
+        self._theme_card = SettingCard(
+            FluentIcon.PALETTE, "界面主题",
+            f"当前: {current_theme}", group,
+        )
+        self._theme_combo = QComboBox(self._theme_card)
+        for label, value in [("深色模式", "dark"), ("浅色模式", "light"), ("跟随系统", "auto")]:
+            self._theme_combo.addItem(label, value)
+        self._theme_combo.setCurrentIndex(
+            self._theme_combo.findData(current_theme)
+        )
+        self._theme_combo.currentIndexChanged.connect(self._on_theme_changed)
+        self._theme_card.hBoxLayout.addStretch()
+        self._theme_card.hBoxLayout.addWidget(self._theme_combo, 0, Qt.AlignRight)
+        self._theme_card.hBoxLayout.addSpacing(16)
+        group.addSettingCard(self._theme_card)
+
         # ── 音频设置 ────────────────────────────────────────
         audio_group = SettingCardGroup("音频", self)
         self._content_layout.addWidget(audio_group)
@@ -211,6 +229,41 @@ class _SettingsPage(_PageBase):
         )
         audio_group.addSettingCard(self._voice_close_card)
 
+        # ── 闲时随机语音 ────────────────────────────────────
+        idle_group = SettingCardGroup("闲时语音", self)
+        self._content_layout.addWidget(idle_group)
+
+        self._idle_voice_card = SwitchSettingCard(
+            FluentIcon.MUSIC, "随机语音",
+            "每隔一段时间自动触发随机语音", configItem=None, parent=idle_group,
+        )
+        self._idle_voice_card.switchButton.setChecked(
+            config.get("main", "is_play_idle_voice", False)
+        )
+        self._idle_voice_card.switchButton.checkedChanged.connect(
+            lambda c: config.set("main", "is_play_idle_voice", c)
+        )
+        idle_group.addSettingCard(self._idle_voice_card)
+
+        # 间隔设置
+        current_interval = config.get("main", "idle_voice_interval", 10)
+        self._interval_card = SettingCard(
+            FluentIcon.DATE_TIME, "语音间隔",
+            f"当前: {current_interval} 分钟", idle_group,
+        )
+        self._interval_combo = QComboBox(self._interval_card)
+        for label, mins in [("5 分钟", 5), ("10 分钟", 10), ("15 分钟", 15),
+                            ("20 分钟", 20), ("30 分钟", 30), ("60 分钟", 60)]:
+            self._interval_combo.addItem(label, mins)
+        self._interval_combo.setCurrentIndex(
+            self._interval_combo.findData(current_interval)
+        )
+        self._interval_combo.currentIndexChanged.connect(self._on_interval_changed)
+        self._interval_card.hBoxLayout.addStretch()
+        self._interval_card.hBoxLayout.addWidget(self._interval_combo, 0, Qt.AlignRight)
+        self._interval_card.hBoxLayout.addSpacing(16)
+        idle_group.addSettingCard(self._interval_card)
+
         self._content_layout.addStretch()
 
     def _on_combo_changed(self, idx: int) -> None:
@@ -218,6 +271,25 @@ class _SettingsPage(_PageBase):
         label, _ = _SCALE_OPTIONS[idx]
         self._scaling_card.setContent(f"当前: {label}")
         self.scaling_changed.emit(value)
+
+    def _on_interval_changed(self, idx: int) -> None:
+        mins = self._interval_combo.itemData(idx)
+        if mins:
+            self._config.set("main", "idle_voice_interval", mins)
+            self._interval_card.setContent(f"当前: {mins} 分钟")
+
+    def _on_theme_changed(self, idx: int) -> None:
+        theme_val = self._theme_combo.itemData(idx)
+        if not theme_val:
+            return
+        self._config.set("main", "theme", theme_val)
+        self._theme_card.setContent(f"当前: {theme_val}")
+
+        # 应用主题
+        theme_map = {"light": Theme.LIGHT, "dark": Theme.DARK, "auto": Theme.AUTO}
+        qf_theme = theme_map.get(theme_val)
+        if qf_theme is not None:
+            setTheme(qf_theme)
 
 
 # ═══════════════════════════════════════════════════════════════
@@ -524,14 +596,17 @@ class _AIConfigPage(_PageBase):
 class _AboutPage(_PageBase):
     def __init__(self, parent=None):
         super().__init__("关于", "DesktopPet 项目信息", parent)
-        info = QLabel(
-            "DesktopPet v0.3.0 — Phase 3\n\n"
-            "基于 PySide6 + qfluentwidgets + OpenAI SDK 构建\n"
-            "遵循 GPL 协议开源\n\n"
-            "GitHub: https://github.com/your/DesktopPet",
-            self
-        )
+        info = QLabel(self)
         info.setWordWrap(True)
+        info.setOpenExternalLinks(True)
+        info.setText(
+            "DesktopPet v0.3.0 — Phase 3<br><br>"
+            "基于 PySide6 + qfluentwidgets + OpenAI SDK 构建<br>"
+            "遵循 GPL 协议开源<br><br>"
+            'GitHub: <a href="https://github.com/golden-train/DesktopPet" '
+            'style="color: #5ba3e6; text-decoration: none;">'
+            "github.com/golden-train/DesktopPet</a>"
+        )
         info.setStyleSheet("font-size: 13px; color: #ccc;")
         self._content_layout.addWidget(info)
         self._content_layout.addStretch()

@@ -108,6 +108,7 @@ build/
 # Project specific
 # ====================
 .env
+.env.example
 data/config/*.local.json
 
 # ====================

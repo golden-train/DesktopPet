@@ -34,6 +34,9 @@ from src.window.management_window import ManagementWindow
 from src.window.chat_window import ChatWindow
 from src.ai.client import AIClient
 from src.ai.prompts import ANIMATION_MARKERS
+from src.voice.service import VoiceService
+from src.extends.battery_voice.main import BatteryMonitor
+from qfluentwidgets import setTheme, Theme
 
 logger = logging.getLogger(__name__)
 
@@ -73,26 +76,45 @@ class DesktopPetApplication:
         self._bg_image: str = ""
         self._verify_config()
 
-        # 4. 动画管理器
+        # 3b. 应用主题
+        self._apply_theme()
+
+        # 4. 语音服务
+        self.voice = VoiceService(self.config)
+
+        # 5. 动画管理器
         self.animation = AnimationManager(self.config)
 
-        # 5. 主窗口
+        # 6. 主窗口
         self.main_window = MainWindow(self.animation)
         self._apply_config_to_window()
 
-        # 6. AI 客户端（延迟初始化，直到首次聊天）
+        # 7. AI 客户端（延迟初始化，直到首次聊天）
         self.ai_client: Optional[AIClient] = None
 
-        # 7. 延迟显示的窗口
+        # 8. 延迟显示的窗口
         self.management_window: Optional[ManagementWindow] = None
         self.chat_window: Optional[ChatWindow] = None
 
-        # 8. 连接信号
+        # 9. 连接信号
         self._connect_signals()
 
-        # 9. 显示窗口（默认右下区域）
+        # 10. 电池监控
+        self._init_battery_monitor()
+
+        # 11. 闲时随机语音定时器
+        self._idle_timer = QTimer(self.main_window)
+        self._idle_timer.timeout.connect(self.voice.play_random_idle)
+        self._idle_timer.start(self._get_idle_interval_ms())
+
+        # 12. 显示窗口（默认右下区域）
         self._place_window()
         self.main_window.show()
+
+    def _get_idle_interval_ms(self) -> int:
+        """获取闲时语音间隔（毫秒），默认 10 分钟。"""
+        minutes = self.config.get("main", "idle_voice_interval", 10)
+        return max(1, int(minutes)) * 60 * 1000
 
         logger.info("DesktopPet 初始化完成，角色窗口已显示")
 
@@ -107,6 +129,15 @@ class DesktopPetApplication:
                 "is_play_VoiceOnClose": False,
             })
             logger.info("已创建默认 main.json")
+
+    def _apply_theme(self) -> None:
+        """应用保存的主题设置。"""
+        theme_val = self.config.get("main", "theme", "dark")
+        theme_map = {"light": Theme.LIGHT, "dark": Theme.DARK, "auto": Theme.AUTO}
+        qf_theme = theme_map.get(theme_val)
+        if qf_theme is not None:
+            setTheme(qf_theme)
+        logger.debug("应用主题: %s", theme_val)
 
     def _apply_config_to_window(self) -> None:
         """将配置中的缩放等设置应用到窗口。"""
@@ -133,10 +164,41 @@ class DesktopPetApplication:
         self.main_window.quit_requested.connect(
             self._quit_app
         )
+        self.main_window.shown.connect(
+            self._on_main_window_shown
+        )
+        self.main_window.closing.connect(
+            self._on_main_window_closing
+        )
+
+    def _on_main_window_shown(self) -> None:
+        """主窗口显示时播放启动语音。"""
+        self.voice.play_voice_pack("VoiceOnStart")
+
+    def _on_main_window_closing(self) -> None:
+        """主窗口隐藏时播放关闭语音。"""
+        self.voice.play_voice_pack("VoiceOnClose")
+
+    def _init_battery_monitor(self) -> None:
+        """初始化电池监控。"""
+        try:
+            self._battery_monitor = BatteryMonitor()
+            self._battery_monitor.voice_triggered.connect(
+                self.voice.play_battery_voice
+            )
+            self._battery_monitor.start()
+            logger.info("电池监控已启动")
+        except Exception as e:
+            logger.warning("电池监控初始化失败（可能无电池）: %s", e)
+            self._battery_monitor = None
 
     def _quit_app(self) -> None:
         """真正退出程序。"""
         logger.info("用户请求退出")
+        # 停止电池监控
+        if self._battery_monitor:
+            self._battery_monitor.stop()
+            self._battery_monitor.wait(2000)
         # 清理子窗口
         if self.chat_window and self.chat_window.isVisible():
             self.chat_window.close()
