@@ -24,6 +24,13 @@ ASSETS_DIR = DATA_DIR / "assets"
 IMAGES_DIR = ASSETS_DIR / "images"
 LIVE2D_DIR = DATA_DIR / "live2d"
 
+# ── 角色资源目录 ────────────────────────────────────────────
+FIREFLY_DIR = IMAGES_DIR / "firefly"
+ACTIONS_DIR = FIREFLY_DIR / "actions"
+ICON_DIR = IMAGES_DIR / "icon"
+FIREFLY_ICON_DIR = FIREFLY_DIR / "icon"
+AUDIO_FIREFLY_DIR = AUDIO_DIR / "firefly"
+
 # ── 源码目录 ────────────────────────────────────────────────
 SRC_DIR = ROOT_DIR / "src"
 
