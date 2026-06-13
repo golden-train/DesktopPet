@@ -165,5 +165,6 @@ data/                       # 配置、图片、音频
 
 **APGL**
 
-> **免责声明**：本项目所有角色贴图、Live2D 模型、音频等素材均来自网络搜集，**不遵循开源协议**，仅开源程序源代码。  
+> **免责声明**：本项目所有角色贴图、Live2D 模型、音频等素材均来自网络搜集，**不遵循开源协议**，仅开源程序源代码。
+> 本程序灵感来源于 PYmili，代码无关，贴图参考自 <a href="https://github.com/PYmili/MyFlowingFireflyWife">PYmili/MyFlowingFireflyWife</a>
 > 如涉及侵权，请联系删除。感谢所有创作者的作品 🙏
