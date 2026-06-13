@@ -1,0 +1,14 @@
+{
+  "VoiceOnStart": {
+    "morn": [],
+    "noon": [],
+    "night": [],
+    "other": []
+  },
+  "VoiceOnClose": {
+    "morn": [],
+    "noon": [],
+    "night": [],
+    "other": []
+  }
+}

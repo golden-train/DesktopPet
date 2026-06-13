@@ -1,0 +1,116 @@
+# ====================
+# Build outputs
+# ====================
+**/Debug/
+**/Release/
+**/x64/
+**/x86/
+**/Win32/
+**/ARM/
+**/ARM64/
+*.exe
+*.dll
+*.lib
+*.a
+*.so
+*.dylib
+*.obj
+*.o
+*.exp
+*.pdb
+*.ilk
+*.iobj
+*.ipdb
+*.res
+*.sbr
+*.bsc
+*.tlog
+*.lastbuildstate
+*.log
+
+# ====================
+# CMake generated
+# ====================
+**/out/
+**/build/
+**/cmake-build-*/
+CMakeFiles/
+CMakeUserPresets.json
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+*.cmake
+compile_commands.json
+
+# ====================
+# IDE / Editor
+# ====================
+
+# Visual Studio
+.vs/
+*.sln.docstates
+*.user
+*.suo
+*.vssscc
+*.vspscc
+
+# CLion
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Qt Creator
+*.pro.user*
+*.autosave
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+.qmake.stash
+
+# ====================
+# Build dependencies
+# ====================
+packages/
+vcpkg_installed/
+vcpkg-manifest-install.log
+conanbuildinfo.*
+conaninfo.txt
+conanfile.py
+
+# ====================
+# Temp files
+# ====================
+*.tmp
+*.bak
+*~
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# ====================
+# Python
+# ====================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ====================
+# Project specific
+# ====================
+.env
+data/config/*.local.json
+
+# ====================
+# Misc generated
+# ====================
+*.generated.*

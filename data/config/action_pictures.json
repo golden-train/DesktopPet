@@ -1,0 +1,10 @@
+{
+  "Standby": { "path": "data/assets/images/firefly/standby/" },
+  "mention": { "path": "data/assets/images/firefly/mention/" },
+  "sleep": { "path": "data/assets/images/firefly/sleep/" },
+  "eat": { "path": "data/assets/images/firefly/eat/" },
+  "love": { "path": "data/assets/images/firefly/love/" },
+  "discomfort": { "path": "data/assets/images/firefly/discomfort/" },
+  "left": { "path": "data/assets/images/firefly/left/" },
+  "right": { "path": "data/assets/images/firefly/right/" }
+}
