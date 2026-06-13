@@ -12,7 +12,7 @@ from typing import Optional
 from PySide6.QtCore import QObject, Signal
 
 from src.core.config import ConfigManager
-from src.core.paths import ROOT_DIR
+from src.core.paths import BUNDLE_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class AnimationManager(QObject):
             return []
 
         if key not in self._cache:
-            dir_path = ROOT_DIR / self._action_dirs[key]
+            dir_path = BUNDLE_DIR / self._action_dirs[key]
             if not dir_path.is_dir():
                 logger.warning("动作目录不存在: %s", dir_path)
                 self._cache[key] = []

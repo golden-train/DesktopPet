@@ -1,0 +1,8 @@
+{
+  "custom_prompts": [
+    {
+      "name": "test",
+      "prompt": "test"
+    }
+  ]
+}

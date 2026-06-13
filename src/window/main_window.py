@@ -8,9 +8,15 @@
 import logging
 from typing import Optional
 
-from PySide6.QtCore import Qt, QTimer, Signal, QPoint
-from PySide6.QtGui import QAction, QPixmap, QMouseEvent, QContextMenuEvent
+from PySide6.QtCore import Qt, QTimer, Signal, QPoint, QRect, QPropertyAnimation, QEasingCurve
+from PySide6.QtGui import (
+    QAction, QPixmap, QMouseEvent, QContextMenuEvent,
+    QPainter, QPainterPath, QColor,
+)
+from PySide6.QtWidgets import QGraphicsDropShadowEffect
 from PySide6.QtWidgets import QMainWindow, QWidget, QLabel, QVBoxLayout, QMenu
+
+from src.core.paths import FIREFLY_ICON_DIR
 
 from src.character.animation import AnimationManager
 
@@ -25,8 +31,10 @@ class MainWindow(QMainWindow):
 
     # 鼠标交互信号：参数为动作名
     action_triggered = Signal(str)
-    # 用户点击"设置..."时发出
+    # 菜单信号
     settings_requested = Signal()
+    chat_requested = Signal()
+    quit_requested = Signal()
 
     def __init__(self, animation: AnimationManager, parent=None):
         super().__init__(parent)
@@ -34,7 +42,7 @@ class MainWindow(QMainWindow):
 
         # 窗口状态
         self._drag_position: Optional[QPoint] = None
-        self._scaling: int = 0
+        self._scaling: float = 1.0
 
         # ── UI ──────────────────────────────────────────────
         self._setup_window()
@@ -61,6 +69,12 @@ class MainWindow(QMainWindow):
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setAttribute(Qt.WA_ShowWithoutActivating)
 
+        # 设置应用图标
+        icon_path = FIREFLY_ICON_DIR / "icon.png"
+        if icon_path.exists():
+            from PySide6.QtGui import QIcon
+            self.setWindowIcon(QIcon(str(icon_path)))
+
     def _setup_ui(self) -> None:
         central = QWidget(self)
         central.setAttribute(Qt.WA_TranslucentBackground)
@@ -70,6 +84,14 @@ class MainWindow(QMainWindow):
         self._label = QLabel(central)
         self._label.setAttribute(Qt.WA_TranslucentBackground)
         self._label.setScaledContents(True)
+
+        # 角色阴影效果
+        shadow = QGraphicsDropShadowEffect(self._label)
+        shadow.setBlurRadius(20)
+        shadow.setOffset(0, 4)
+        shadow.setColor(QColor(0, 0, 0, 120))
+        self._label.setGraphicsEffect(shadow)
+
         layout.addWidget(self._label)
 
         self.setCentralWidget(central)
@@ -77,13 +99,25 @@ class MainWindow(QMainWindow):
     def _setup_menu(self) -> None:
         self._menu = QMenu(self)
         self._menu.setStyleSheet("""
-            QMenu { background: #2d2d2d; color: #eee; border: 1px solid #555; }
-            QMenu::item:selected { background: #4a4a4a; }
+            QMenu {
+                background: #2a2a2a; color: #e0e0e0;
+                border: 1px solid #444; border-radius: 8px;
+                padding: 4px;
+            }
+            QMenu::item {
+                padding: 6px 28px 6px 16px;
+                border-radius: 4px;
+            }
+            QMenu::item:selected { background: #3a6ea5; color: #fff; }
+            QMenu::separator {
+                height: 1px; background: #444;
+                margin: 4px 12px;
+            }
         """)
 
-        self._act_toggle_ai = QAction("暂停 AI（开发中）", self)
-        self._act_toggle_ai.setEnabled(False)
-        self._menu.addAction(self._act_toggle_ai)
+        self._act_chat = QAction("打开聊天", self)
+        self._act_chat.triggered.connect(self.chat_requested.emit)
+        self._menu.addAction(self._act_chat)
 
         self._menu.addSeparator()
 
@@ -92,7 +126,7 @@ class MainWindow(QMainWindow):
         self._menu.addAction(self._act_settings)
 
         self._act_exit = QAction("退出", self)
-        self._act_exit.triggered.connect(self.close)
+        self._act_exit.triggered.connect(self.quit_requested.emit)
         self._menu.addAction(self._act_exit)
 
     # ── 动画驱动 ────────────────────────────────────────────
@@ -112,10 +146,10 @@ class MainWindow(QMainWindow):
             logger.warning("无法加载图片: %s", path)
             self._label.clear()
             return
-        # 缩放
-        if self._scaling > 0:
-            w = pixmap.width() * (1 + self._scaling)
-            h = pixmap.height() * (1 + self._scaling)
+        # 缩放（self._scaling 为倍数，1.0=原始大小）
+        if self._scaling != 1.0:
+            w = pixmap.width() * self._scaling
+            h = pixmap.height() * self._scaling
             pixmap = pixmap.scaled(int(w), int(h), Qt.KeepAspectRatio, Qt.SmoothTransformation)
         self._label.setPixmap(pixmap)
         self._label.resize(pixmap.size())
@@ -128,8 +162,8 @@ class MainWindow(QMainWindow):
 
     # ── 缩放 ────────────────────────────────────────────────
 
-    def set_scaling(self, value: int) -> None:
-        """设置缩放等级（0/2/4/8）。"""
+    def set_scaling(self, value: float) -> None:
+        """设置缩放倍数（0.25=1/4, 0.5=1/2, 1=原始, 2=2倍...）。"""
         self._scaling = value
         self._update_image()
 
@@ -165,9 +199,29 @@ class MainWindow(QMainWindow):
         """右键弹出菜单。"""
         self._menu.exec(event.globalPos())
 
+    # ── 窗口移动动画 ────────────────────────────────────────
+
+    def animate_to(self, target_x: int, target_y: int,
+                   duration: int = 600) -> QPropertyAnimation:
+        """平滑移动到指定坐标。返回动画对象，调用方需保持引用。"""
+        self._walk_anim = QPropertyAnimation(self, b"pos")
+        self._walk_anim.setDuration(duration)
+        self._walk_anim.setStartValue(self.pos())
+        self._walk_anim.setEndValue(QPoint(target_x, target_y))
+        self._walk_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._walk_anim.start()
+        # 行走时切换为 left/right 朝向
+        dx = target_x - self.pos().x()
+        if dx < -5:
+            self.switch_action("left")
+        elif dx > 5:
+            self.switch_action("right")
+        return self._walk_anim
+
     # ── 生命周期 ────────────────────────────────────────────
 
     def closeEvent(self, event) -> None:
-        self._timer.stop()
-        logger.info("主窗口关闭")
-        super().closeEvent(event)
+        """用户点击 X 时隐藏到托盘（不退出程序）。"""
+        logger.info("主窗口隐藏到后台")
+        self.hide()
+        event.ignore()
