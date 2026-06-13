@@ -108,6 +108,7 @@ class DesktopPetApplication:
         self._idle_timer.timeout.connect(self.voice.play_random_idle)
         self._idle_timer.start(self._get_idle_interval_ms())
 
+
         # 12. 显示窗口（默认右下区域）
         self._place_window()
         self.main_window.show()
@@ -178,6 +179,15 @@ class DesktopPetApplication:
         """主窗口隐藏时播放关闭语音。"""
         self.voice.play_voice_pack("VoiceOnClose")
 
+    def _on_chat_moved(self) -> None:
+        """聊天窗口拖动时，角色持续跟随。"""
+        if not self.chat_window or not self.chat_window.isVisible():
+            return
+        chat_pos = self.chat_window.pos()
+        char_x = max(0, chat_pos.x() - self.main_window.width() - 10)
+        char_y = chat_pos.y() + 40
+        self.main_window.follow_to(char_x, char_y)
+
     def _init_battery_monitor(self) -> None:
         """初始化电池监控。"""
         try:
@@ -235,6 +245,9 @@ class DesktopPetApplication:
             self.chat_window.window_closed.connect(
                 lambda: self.animation.switch_action("Standby")
             )
+            self.chat_window.window_moved.connect(
+                self._on_chat_moved
+            )
 
         if self.chat_window.isVisible():
             self.chat_window.raise_()
@@ -252,7 +265,7 @@ class DesktopPetApplication:
             self.chat_window.move(chat_x, chat_y)
 
             # 角色走过去
-            anim = self.main_window.animate_to(char_x, char_y, duration=600)
+            anim = self.main_window.animate_to(char_x, char_y, duration=1000)
             anim.finished.connect(self.chat_window.show)
 
     # ── AI 回复处理（文档 §4.3）────────────────────────────

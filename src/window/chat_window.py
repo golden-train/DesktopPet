@@ -35,6 +35,8 @@ class ChatWindow(QWidget):
     reply_ready = Signal(str)
     # 窗口关闭时发出
     window_closed = Signal()
+    # 窗口移动时发出
+    window_moved = Signal()
 
     def __init__(self, ai_client: AIClient, config, parent=None):
         super().__init__(parent)
@@ -43,7 +45,11 @@ class ChatWindow(QWidget):
         self._history: list[dict] = []
         self._thinking = False
 
-        self.setWindowTitle("✦ 与流萤聊天 ✦")
+        # 角色名：从 skills.json 默认技能获取，兼容后续自定义
+        from src.ai.prompts import get_default_skill_name
+        self._character_name = get_default_skill_name(config)
+
+        self.setWindowTitle(f"✦ 与 {self._character_name} 聊天 ✦")
         self.setMinimumSize(400, 500)
         self.resize(440, 560)
         self.setAttribute(Qt.WA_QuitOnClose, False)
@@ -54,7 +60,7 @@ class ChatWindow(QWidget):
         layout.setSpacing(8)
 
         # 标题
-        title = QLabel("✦ 与桌面宠物聊天 ✦", self)
+        title = QLabel(f"✦ 与 {self._character_name} 聊天 ✦", self)
         title.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(14)
@@ -65,7 +71,7 @@ class ChatWindow(QWidget):
         # 聊天记录
         self._display = QTextEdit(self)
         self._display.setReadOnly(True)
-        self._display.setPlaceholderText("开始和流萤聊天吧……")
+        self._display.setPlaceholderText("开始和桌面宠物聊天吧……")
         self._display.setStyleSheet("""
             QTextEdit {
                 background: #1e1e1e; color: #e0e0e0;
@@ -129,7 +135,7 @@ class ChatWindow(QWidget):
         self._chat_signal.error_occurred.connect(self._on_error)
 
         # ── 启动问候 ────────────────────────────────────────
-        self._append_message("系统", "你好呀，我是流萤！有什么想聊的吗？(◕‿◕)")
+        self._append_message("系统", "你好呀，我是你的桌面宠物！有什么想聊的吗？(◕‿◕)")
 
     # ── 发送消息 ────────────────────────────────────────────
 
@@ -145,7 +151,7 @@ class ChatWindow(QWidget):
         # 显示"正在思考…"
         self._thinking = True
         self._set_input_enabled(False)
-        self._append_message("流萤", "……正在思考……")
+        self._append_message(self._character_name, "……正在思考……")
 
         # 构建消息列表
         skill_prompt = get_skill_prompt(self._config)
@@ -168,7 +174,7 @@ class ChatWindow(QWidget):
 
         # 替换"正在思考…"占位
         self._remove_thinking_placeholder()
-        self._append_message("流萤", reply)
+        self._append_message(self._character_name, reply)
         self._history.append({"role": "assistant", "content": reply})
 
         # 通知控制器解析动作标记
@@ -185,7 +191,7 @@ class ChatWindow(QWidget):
 
     def _append_message(self, sender: str, text: str) -> None:
         """追加一条消息到聊天记录。"""
-        color = {"用户": "#7ec8e3", "流萤": "#ff9eb5", "系统": "#888"}.get(sender, "#ccc")
+        color = {"用户": "#7ec8e3", self._character_name: "#ff9eb5", "系统": "#888"}.get(sender, "#ccc")
         # 对消息内容做 HTML 转义
         safe = text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
         html = f'<p style="margin:4px 0"><b style="color:{color}">{sender}</b> {safe}</p>'
@@ -221,6 +227,11 @@ class ChatWindow(QWidget):
             self._thread.wait(1000)
         self.window_closed.emit()
         super().closeEvent(event)
+
+    def moveEvent(self, event) -> None:
+        """窗口拖动时发出信号，让角色跟随。"""
+        super().moveEvent(event)
+        self.window_moved.emit()
 
 
 # ═══════════════════════════════════════════════════════════════

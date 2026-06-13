@@ -206,7 +206,7 @@ class MainWindow(QMainWindow):
 
     def animate_to(self, target_x: int, target_y: int,
                    duration: int = 600) -> QPropertyAnimation:
-        """平滑移动到指定坐标。返回动画对象，调用方需保持引用。"""
+        """平滑移动到指定坐标（单次动画）。返回动画对象，调用方需保持引用。"""
         self._walk_anim = QPropertyAnimation(self, b"pos")
         self._walk_anim.setDuration(duration)
         self._walk_anim.setStartValue(self.pos())
@@ -220,6 +220,10 @@ class MainWindow(QMainWindow):
         elif dx > 5:
             self.switch_action("right")
         return self._walk_anim
+
+    def follow_to(self, target_x: int, target_y: int) -> None:
+        """闪现到目标位置（聊天窗拖动时跟随）。"""
+        self.move(target_x, target_y)
 
     # ── 生命周期 ────────────────────────────────────────────
 
