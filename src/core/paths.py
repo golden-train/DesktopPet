@@ -21,9 +21,8 @@ _IS_FROZEN = getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
 if _IS_FROZEN:
     # 打包后：BUNDLE_DIR = PyInstaller 临时解压目录（只读）
     BUNDLE_DIR = Path(sys._MEIPASS).resolve()
-    # USER_DIR = 用户数据目录（可写，持久化）
-    _appdata = Path(os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming"))
-    USER_DIR = (_appdata / "DesktopPet").resolve()
+    # USER_DIR = exe 同级目录（便携模式，可写持久化）
+    USER_DIR = Path(sys.executable).resolve().parent
 else:
     # 开发模式：两者相同，都是项目根
     _root = Path(__file__).resolve().parent.parent.parent
@@ -64,6 +63,9 @@ AUDIO_FIREFLY_DIR = AUDIO_DIR / "firefly"
 # ── .env 文件路径（始终在用户可写目录）─────────────────────
 ENV_PATH = USER_DIR / ".env"
 
+# ── 日志目录 ────────────────────────────────────────────────
+LOGS_DIR = USER_DIR / "data" / "logs"
+
 # ── 源码目录（仅开发模式）────────────────────────────────────
 SRC_DIR = BUNDLE_DIR / "src"
 
@@ -73,6 +75,7 @@ _USER_REQUIRED_DIRS = [
     USER_CONFIG_DIR,
     USER_DIR / "data" / "audio",
     USER_DIR / "data" / "assets" / "images",
+    LOGS_DIR,
 ]
 
 
