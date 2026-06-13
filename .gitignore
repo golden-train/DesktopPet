@@ -110,6 +110,9 @@ build/
 .env
 .env.example
 data/config/*.local.json
+data/logs/
+*.spec
+DesktopPet.spec
 
 # ====================
 # Misc generated

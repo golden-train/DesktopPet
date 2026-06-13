@@ -17,6 +17,7 @@ import re
 import logging
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
@@ -115,8 +116,6 @@ class DesktopPetApplication:
         """获取闲时语音间隔（毫秒），默认 10 分钟。"""
         minutes = self.config.get("main", "idle_voice_interval", 10)
         return max(1, int(minutes)) * 60 * 1000
-
-        logger.info("DesktopPet 初始化完成，角色窗口已显示")
 
     def _verify_config(self) -> None:
         """验证关键配置是否存在，若不存在则用默认值创建。"""
@@ -298,6 +297,18 @@ def main():
         except Exception:
             pass
 
+    # 文件日志（每次启动新文件）
+    from src.core.paths import LOGS_DIR
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)
+    log_filename = f"desktoppet_{datetime.now().strftime('%Y%m%d_%H%M%S')}.log"
+    _file_handler = logging.FileHandler(
+        LOGS_DIR / log_filename, encoding="utf-8", mode="w"
+    )
+    _file_handler.setFormatter(logging.Formatter(
+        "[%(asctime)s] %(name)s %(levelname)s: %(message)s",
+        datefmt="%H:%M:%S",
+    ))
+
     _handler = logging.StreamHandler(sys.stdout)
     _handler.setFormatter(_ColoredFormatter(
         "[%(asctime)s] %(name)s %(levelname)s: %(message)s",
@@ -305,8 +316,9 @@ def main():
     ))
     logging.basicConfig(
         level=logging.INFO,
-        handlers=[_handler],
+        handlers=[_handler, _file_handler],
     )
+    logging.getLogger().info("日志文件: %s", log_filename)
     app = DesktopPetApplication()
     sys.exit(app.run())
 
