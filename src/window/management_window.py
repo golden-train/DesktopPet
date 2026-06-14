@@ -12,6 +12,7 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
     QLineEdit, QPushButton, QTextEdit, QMessageBox,
+    QScrollArea, QFrame,
 )
 from PySide6.QtGui import QFont
 
@@ -64,6 +65,7 @@ class ManagementWindow(MSFluentWindow):
         self.settings_page = _SettingsPage(self._config, self._main_window, self)
         self.extend_page = _ExtendPage(self._config, self)
         self.ai_config_page = _AIConfigPage(self._config, self)
+        self.help_page = _HelpPage(self)
         self.about_page = _AboutPage(self)
 
         # ── 注册导航项 ──────────────────────────────────────
@@ -72,6 +74,7 @@ class ManagementWindow(MSFluentWindow):
         self.addSubInterface(self.settings_page, FluentIcon.SETTING, "设置")
         self.addSubInterface(self.extend_page, FluentIcon.LEAF, "扩展")
         self.addSubInterface(self.ai_config_page, FluentIcon.ROBOT, "AI 配置")
+        self.addSubInterface(self.help_page, FluentIcon.HELP, "帮助")
         self.addSubInterface(self.about_page, FluentIcon.INFO, "关于")
 
         # ── 信号连接 ────────────────────────────────────────
@@ -706,6 +709,181 @@ class _AIConfigPage(_PageBase):
         finally:
             self._test_btn.setEnabled(True)
             self._test_btn.setText("测试连接")
+
+
+# ═══════════════════════════════════════════════════════════════
+# 帮助页面
+# ═══════════════════════════════════════════════════════════════
+
+class _HelpPage(_PageBase):
+    """帮助页面——总体使用说明 + 模型导入向导。"""
+
+    def __init__(self, parent=None):
+        super().__init__("帮助", "使用指南与常见操作说明", parent)
+
+        # 内容放入滚动区
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.NoFrame)
+        scroll.setStyleSheet("QScrollArea { background: transparent; }"
+                             "QScrollBar:vertical { width: 6px; }")
+
+        content = QWidget(scroll)
+        content.setStyleSheet("background: transparent;")
+        cl = QVBoxLayout(content)
+        cl.setContentsMargins(0, 0, 12, 0)
+        cl.setSpacing(20)
+
+        # ═══════════════════════════════════════════════════
+        # 一、总体使用说明
+        # ═══════════════════════════════════════════════════
+        cl.addWidget(self._section_title("📖 总体使用说明"))
+
+        cl.addWidget(self._sub_title("基本操作"))
+        cl.addWidget(self._text(
+            "• 鼠标左键点击角色 → 触发互动动画（上半区比心，下半区蹭蹭）<br>"
+            "• 鼠标左键拖拽 → 移动角色到任意位置<br>"
+            "• 鼠标右键 → 弹出功能菜单<br>"
+            "• 鼠标滚轮或双击 → 触发特殊动作"
+        ))
+
+        cl.addWidget(self._sub_title("右键菜单"))
+        cl.addWidget(self._text(
+            "• 打开聊天 → 与 AI 角色对话（需先配置 API Key）<br>"
+            "• Live2D 查看器 → 切换到 Live2D 模型显示<br>"
+            "• 自由行走 → 角色在屏幕边缘自动来回行走<br>"
+            "• 设置... → 打开详细设置窗口<br>"
+            "• 退出 → 关闭程序"
+        ))
+
+        cl.addWidget(self._sub_title("AI 对话"))
+        cl.addWidget(self._text(
+            "1. 右键 → 设置 → AI 配置，填写 API Key 和接口地址<br>"
+            "2. 右键 → 打开聊天，即可与角色对话<br>"
+            "3. AI 回复中嵌入 [动作名] 可自动触发角色动画<br>"
+            "4. 在 AI 配置页可使用「AI 生成提示词」快速创建角色设定"
+        ))
+
+        cl.addWidget(self._sub_title("语音系统"))
+        cl.addWidget(self._text(
+            "• 设置 → 音频 → 开启启动/关闭语音<br>"
+            "• 扩展 → 电池语音 → 插入/拔掉电源时自动播报<br>"
+            "• 扩展 → 闲时语音 → 角色每隔一段时间随机说话"
+        ))
+
+        # ═══════════════════════════════════════════════════
+        # 二、模型导入向导
+        # ═══════════════════════════════════════════════════
+        cl.addWidget(self._divider())
+        cl.addWidget(self._section_title("🧑 导入像素小人角色"))
+
+        cl.addWidget(self._text(
+            "在 设置 → 模型 → 导入新角色，选择包含以下结构的文件夹："
+        ))
+        cl.addWidget(self._code(
+            "你的模型/\n"
+            "├── actions/          ← 必需\n"
+            "│   ├── Standby/      ← 必需（待机动画）\n"
+            "│   │   ├── 0.png\n"
+            "│   │   └── 1.png\n"
+            "│   ├── love/         ← 可选\n"
+            "│   ├── left/         ← 可选（与 right 同时存在才支持行走）\n"
+            "│   └── right/        ← 可选\n"
+            "├── model.json        ← 推荐（角色元数据）\n"
+            "├── icon/icon.png     ← 可选（缩略图）\n"
+            "└── voice/            ← 可选（语音包）"
+        ))
+        cl.addWidget(self._text(
+            "支持 PNG/JPG/WebP/GIF 图片格式，WAV/MP3/Ogg 音频格式。<br>"
+            "导入后可在模型页面切换角色，不支持行走的角色会自动禁用行走菜单。"
+        ))
+
+        cl.addWidget(self._divider())
+        cl.addWidget(self._section_title("🎭 导入 Live2D 模型"))
+
+        cl.addWidget(self._text(
+            "在 设置 → 模型 → 导入新模型，选择包含以下结构的文件夹："
+        ))
+        cl.addWidget(self._code(
+            "你的 Live2D/\n"
+            "├── 名称.model3.json   ← 必需（模型配置）\n"
+            "├── 名称.moc3          ← 必需（模型数据）\n"
+            "├── 名称.4096/         ← 必需（贴图目录）\n"
+            "│   └── texture_00.png\n"
+            "├── animations/        ← 可选（动作）\n"
+            "├── expressions/       ← 可选（表情）\n"
+            "└── voice/             ← 可选（语音）"
+        ))
+        cl.addWidget(self._text(
+            "导入后右键角色 → Live2D 查看器 → 右键 → 切换模型 中选择。<br>"
+            "系统已内置「流萤」「椿」两个 Live2D 模型可直接使用。"
+        ))
+
+        cl.addWidget(self._divider())
+        cl.addWidget(self._section_title("🔧 常见问题"))
+
+        cl.addWidget(self._text(
+            "<b>导入提示缺少 Standby？</b><br>"
+            "actions/Standby/ 目录是必需的，放入至少一张 PNG 图片。<br><br>"
+            "<b>行走菜单灰色不可用？</b><br>"
+            "角色缺少 left 和 right 动作目录，只有两者都有才支持行走。<br><br>"
+            "<b>导入后不显示？</b><br>"
+            "检查图片格式（PNG/JPG/WebP），尝试在设置中调整缩放倍数。<br><br>"
+            "<b>Live2D 不显示？</b><br>"
+            "确保 .model3.json 中引用的贴图路径正确且文件存在。"
+        ))
+
+        cl.addStretch()
+
+        scroll.setWidget(content)
+        self._content_layout.addWidget(scroll, 1)
+
+    # ── 内容辅助方法 ────────────────────────────────────────
+
+    @staticmethod
+    def _section_title(text: str) -> QLabel:
+        lbl = QLabel(text)
+        tf = QFont()
+        tf.setPointSize(15)
+        tf.setBold(True)
+        lbl.setFont(tf)
+        lbl.setStyleSheet("color: #e0e0e0; padding: 4px 0;")
+        return lbl
+
+    @staticmethod
+    def _sub_title(text: str) -> QLabel:
+        lbl = QLabel(text)
+        tf = QFont()
+        tf.setPointSize(13)
+        tf.setBold(True)
+        lbl.setFont(tf)
+        lbl.setStyleSheet("color: #5ba3e6; padding: 2px 0;")
+        return lbl
+
+    @staticmethod
+    def _text(html: str) -> QLabel:
+        lbl = QLabel(html)
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet("color: #bbb; font-size: 13px; line-height: 1.7;")
+        return lbl
+
+    @staticmethod
+    def _code(text: str) -> QLabel:
+        lbl = QLabel(text)
+        lbl.setWordWrap(True)
+        lbl.setStyleSheet(
+            "color: #8ab4f8; font-size: 12px; font-family: Consolas, monospace;"
+            "background: #1a1a2a; border: 1px solid #333; border-radius: 6px;"
+            "padding: 12px; line-height: 1.5;"
+        )
+        return lbl
+
+    @staticmethod
+    def _divider() -> QFrame:
+        line = QFrame()
+        line.setFrameShape(QFrame.HLine)
+        line.setStyleSheet("color: #333;")
+        return line
 
 
 # ═══════════════════════════════════════════════════════════════
