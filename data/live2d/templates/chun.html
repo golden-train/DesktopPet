@@ -2,13 +2,31 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- <link rel="icon" type="image/svg+xml" href="/vite.svg" /> -->
     <script src="/src/library/live2d.min.js"></script>
     <script src="/src/library/live2dcubismcore.min.js"></script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + Vue</title>
+    <title>Live2D</title>
     <script type="module" crossorigin src="/assets/index-B9zFgl41.js"></script>
     <link rel="stylesheet" crossorigin href="/assets/index-BuDlpqlw.css">
+    <style>
+      header, nav, .header, .navbar, .menu-bar, .el-header,
+      [class*="header"], [class*="menu"], [class*="nav"], [class*="toolbar"],
+      [class*="title"], [class*="top"], [class*="bar"],
+      #header, #navbar, #menu, #topbar,
+      button, .button, [role="button"] {
+        display: none !important;
+      }
+      body, html, #app {
+        margin: 0 !important; padding: 0 !important;
+        overflow: hidden !important;
+        background: transparent !important;
+      }
+      canvas {
+        position: fixed !important;
+        top: 0 !important; left: 0 !important;
+        width: 100% !important; height: 100% !important;
+      }
+    </style>
   </head>
   <body>
     <div id="app"></div>

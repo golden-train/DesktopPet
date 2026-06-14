@@ -17,9 +17,9 @@ from src.core.paths import BUNDLE_DIR
 logger = logging.getLogger(__name__)
 
 # ── 动作分类 ────────────────────────────────────────────────
-LOOP_ACTIONS = {"Standby", "mention", "sleep", "discomfort"}
+LOOP_ACTIONS = {"Standby", "mention", "sleep", "discomfort", "left", "right", "up", "down"}
 ONE_SHOT_ACTIONS = {"eat", "love"}
-WALK_ACTIONS = {"left", "right"}
+WALK_ACTIONS = {"left", "right", "up", "down"}
 ALL_ACTIONS = LOOP_ACTIONS | ONE_SHOT_ACTIONS | WALK_ACTIONS
 
 # 图片文件扩展名

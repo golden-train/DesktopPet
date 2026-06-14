@@ -39,6 +39,9 @@ from src.voice.service import VoiceService
 from src.extends.battery_voice.main import BatteryMonitor
 from qfluentwidgets import setTheme, Theme
 from src.live2d.server import Live2DServer
+from src.character.walking import WalkingController
+from src.window.loading_window import LoadingWindow
+from src.window.popup_window import PopupWindow
 
 logger = logging.getLogger(__name__)
 
@@ -65,13 +68,18 @@ class DesktopPetApplication:
     """应用主控制器，负责组装所有模块并连接信号。"""
 
     def __init__(self):
-        # 1. 确保数据目录存在
-        ensure_dirs()
-
-        # 2. Qt 应用
+        # 1. Qt 应用（必须在任何 QWidget 之前创建）
         self.app = QApplication(sys.argv)
         self.app.setApplicationName("DesktopPet")
         self.app.setApplicationDisplayName("桌面宠物")
+
+        # 2. 启动加载窗口
+        self._loading = LoadingWindow()
+        self._loading.show()
+
+        # 3. 确保数据目录存在
+        ensure_dirs()
+        self._loading.set_status("加载配置…")
 
         # 3. 配置管理器
         self.config = ConfigManager()
@@ -83,41 +91,50 @@ class DesktopPetApplication:
 
         # 4. 语音服务
         self.voice = VoiceService(self.config)
+        self._loading.set_status("加载语音…")
 
         # 5. 动画管理器
         self.animation = AnimationManager(self.config)
+        self._loading.set_status("加载动画…")
 
         # 6. 主窗口
         self.main_window = MainWindow(self.animation)
         self._apply_config_to_window()
 
-        # 7. AI 客户端（延迟初始化，直到首次聊天）
+        # 7. 行走控制器
+        self.walking = WalkingController(
+            self.main_window, self.animation.switch_action
+        )
+
+        # 8. AI 客户端（延迟初始化，直到首次聊天）
         self.ai_client: Optional[AIClient] = None
 
-        # 8. 延迟显示的窗口
+        # 9. 延迟显示的窗口
         self.management_window: Optional[ManagementWindow] = None
         self.chat_window: Optional[ChatWindow] = None
         self.live2d_viewer: Optional[Live2DViewer] = None
 
-        # 9. Live2D 服务器
+        # 10. Live2D 服务器
         self.live2d_server = Live2DServer()
         self.live2d_server.start()
+        self._loading.set_status("启动服务…")
 
-        # 10. 连接信号
+        # 11. 连接信号
         self._connect_signals()
 
-        # 10. 电池监控
+        # 12. 电池监控
         self._init_battery_monitor()
 
-        # 11. 闲时随机语音定时器
+        # 13. 闲时随机语音定时器
         self._idle_timer = QTimer(self.main_window)
         self._idle_timer.timeout.connect(self.voice.play_random_idle)
         self._idle_timer.start(self._get_idle_interval_ms())
 
-
-        # 12. 显示窗口（默认右下区域）
+        # 14. 显示窗口
         self._place_window()
+        self._loading.set_status("启动完成")
         self.main_window.show()
+        self._loading.finish()
 
     def _get_idle_interval_ms(self) -> int:
         """获取闲时语音间隔（毫秒），默认 10 分钟。"""
@@ -170,6 +187,12 @@ class DesktopPetApplication:
         self.main_window.live2d_requested.connect(
             self._open_live2d
         )
+        self.main_window.walking_toggled.connect(
+            self._toggle_walking
+        )
+        self.main_window.user_dragged.connect(
+            self._on_user_dragged
+        )
         self.main_window.quit_requested.connect(
             self._quit_app
         )
@@ -187,6 +210,20 @@ class DesktopPetApplication:
     def _on_main_window_closing(self) -> None:
         """主窗口隐藏时播放关闭语音。"""
         self.voice.play_voice_pack("VoiceOnClose")
+
+    def _toggle_walking(self) -> None:
+        """切换自由行走。"""
+        self.walking.toggle()
+        # 更新菜单勾选状态
+        if hasattr(self.main_window, '_act_walk'):
+            self.main_window._act_walk.setChecked(self.walking.is_walking)
+
+    def _on_user_dragged(self) -> None:
+        """用户拖拽角色时停止行走。"""
+        if self.walking.is_walking:
+            self.walking.stop()
+            if hasattr(self.main_window, '_act_walk'):
+                self.main_window._act_walk.setChecked(False)
 
     def _on_chat_moved(self) -> None:
         """聊天窗口拖动时，角色持续跟随。"""
@@ -282,18 +319,22 @@ class DesktopPetApplication:
             anim.finished.connect(self.chat_window.show)
 
     def _open_live2d(self) -> None:
-        """打开 Live2D 查看器。"""
+        """打开 Live2D 查看器（隐藏角色窗口）。"""
         if self.live2d_viewer is None:
             from src.live2d.viewer import Live2DViewer
             self.live2d_viewer = Live2DViewer(self.live2d_server)
-            self.live2d_viewer.closed.connect(
-                lambda: logger.info("Live2D 查看器已关闭")
-            )
+            self.live2d_viewer.closed.connect(self._on_live2d_closed)
         if self.live2d_viewer.isVisible():
             self.live2d_viewer.raise_()
             self.live2d_viewer.activateWindow()
         else:
+            self.main_window.hide()
             self.live2d_viewer.show()
+
+    def _on_live2d_closed(self) -> None:
+        """Live2D 关闭时恢复角色窗口。"""
+        self.main_window.show()
+        logger.info("Live2D 查看器已关闭")
 
     # ── AI 回复处理（文档 §4.3）────────────────────────────
 
@@ -303,6 +344,12 @@ class DesktopPetApplication:
         if action:
             logger.info("AI 触发动作: %s", action)
             self.animation.switch_action(action)
+        # 弹出消息提示
+        text = re.sub(r'\[(\w+)\]', '', reply).strip()
+        if text:
+            from src.window.popup_window import PopupWindow
+            # 取前 40 字作为弹窗内容
+            PopupWindow(text[:60], duration_ms=4000)
 
     @staticmethod
     def _parse_animation_marker(text: str) -> Optional[str]:

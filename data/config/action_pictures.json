@@ -30,5 +30,13 @@
     "right": {
         "path": "data\\assets\\images\\firefly\\actions\\right",
         "type": ".png"
+    },
+    "up": {
+        "path": "data\\assets\\images\\firefly\\actions\\Standby",
+        "type": ".png"
+    },
+    "down": {
+        "path": "data\\assets\\images\\firefly\\actions\\Standby",
+        "type": ".png"
     }
 }

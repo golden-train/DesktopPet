@@ -31,10 +31,13 @@ class MainWindow(QMainWindow):
 
     # 鼠标交互信号：参数为动作名
     action_triggered = Signal(str)
+    # 用户拖拽窗口时发出
+    user_dragged = Signal()
     # 菜单信号
     settings_requested = Signal()
     chat_requested = Signal()
     live2d_requested = Signal()
+    walking_toggled = Signal()
     quit_requested = Signal()
     # 生命周期信号（用于语音触发等）
     shown = Signal()
@@ -127,6 +130,11 @@ class MainWindow(QMainWindow):
         self._act_live2d.triggered.connect(self.live2d_requested.emit)
         self._menu.addAction(self._act_live2d)
 
+        self._act_walk = QAction("自由行走", self)
+        self._act_walk.setCheckable(True)
+        self._act_walk.triggered.connect(self.walking_toggled.emit)
+        self._menu.addAction(self._act_walk)
+
         self._menu.addSeparator()
 
         self._act_settings = QAction("设置...", self)
@@ -196,6 +204,7 @@ class MainWindow(QMainWindow):
             delta = event.globalPosition().toPoint() - self._drag_position
             self.move(self.pos() + delta)
             self._drag_position = event.globalPosition().toPoint()
+            self.user_dragged.emit()
         super().mouseMoveEvent(event)
 
     def mouseDoubleClickEvent(self, event: QMouseEvent) -> None:
