@@ -8,11 +8,12 @@ API Key 等敏感信息写入 .env 文件（被 .gitignore 排除），确保安
 import logging
 from typing import Optional
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QSize
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QComboBox,
     QLineEdit, QPushButton, QTextEdit, QMessageBox,
-    QScrollArea, QFrame,
+    QScrollArea, QFrame, QListWidget, QListWidgetItem,
+    QStackedWidget, QSplitter,
 )
 from PySide6.QtGui import QFont
 
@@ -716,29 +717,128 @@ class _AIConfigPage(_PageBase):
 # ═══════════════════════════════════════════════════════════════
 
 class _HelpPage(_PageBase):
-    """帮助页面——总体使用说明 + 模型导入向导。"""
+    """帮助页面——可选择子项，底部附 Issues 链接。"""
+
+    _TOPICS = [
+        ("📖 总体使用说明", "基本操作 / 右键菜单 / AI 对话 / 语音系统"),
+        ("🧑 像素小人导入", "Standby 必需 / 动作目录 / 语音包 / model.json"),
+        ("🎭 Live2D 导入", ".model3.json / 贴图 / 动作 / 表情 / 语音"),
+        ("🔧 常见问题", "导入失败 / 行走灰色 / 不显示 / 语音不播"),
+    ]
 
     def __init__(self, parent=None):
-        super().__init__("帮助", "使用指南与常见操作说明", parent)
+        super().__init__("帮助", "选择一个主题查看详细说明", parent)
 
-        # 内容放入滚动区
-        scroll = QScrollArea(self)
+        # ── 左右分割 ─────────────────────────────────────────
+        splitter = QSplitter(Qt.Horizontal, self)
+        splitter.setHandleWidth(1)
+        splitter.setStyleSheet("QSplitter::handle { background: #444; }")
+
+        # ── 左侧：主题列表 ───────────────────────────────────
+        self._list = QListWidget(splitter)
+        self._list.setFrameShape(QFrame.NoFrame)
+        self._list.setMaximumWidth(200)
+        self._list.setMinimumWidth(150)
+        self._list.setStyleSheet("""
+            QListWidget {
+                background: transparent; color: #ccc;
+                font-size: 13px; border: none; outline: none;
+            }
+            QListWidget::item {
+                padding: 14px 16px; border-radius: 6px; margin: 2px 0;
+            }
+            QListWidget::item:selected {
+                background: #3a6ea5; color: #fff;
+            }
+            QListWidget::item:hover:!selected {
+                background: #2a2a3a;
+            }
+        """)
+        for i, (title, desc) in enumerate(self._TOPICS):
+            item = QListWidgetItem(title)
+            item.setToolTip(desc)
+            item.setSizeHint(QSize(0, 50))
+            self._list.addItem(item)
+        self._list.setCurrentRow(0)
+
+        # ── 右侧：QStackedWidget ─────────────────────────────
+        right_panel = QWidget(splitter)
+        rp_layout = QVBoxLayout(right_panel)
+        rp_layout.setContentsMargins(0, 0, 0, 0)
+        rp_layout.setSpacing(0)
+
+        self._stack = QStackedWidget(right_panel)
+        self._stack.setStyleSheet("background: transparent;")
+
+        pages = [
+            self._page_usage,
+            self._page_pixel_import,
+            self._page_live2d_import,
+            self._page_faq,
+        ]
+        for i, build_fn in enumerate(pages):
+            page = self._build_page(build_fn)
+            self._stack.addWidget(page)
+
+        rp_layout.addWidget(self._stack, 1)
+
+        # ── 底部：GitHub Issues ──────────────────────────────
+        footer = QFrame(right_panel)
+        footer.setFixedHeight(40)
+        footer.setStyleSheet("background: transparent; border-top: 1px solid #333;")
+        fl = QHBoxLayout(footer)
+        fl.setContentsMargins(12, 4, 12, 4)
+        issue_link = QLabel(
+            '💡 遇到问题或有建议？请提交 '
+            '<a href="https://github.com/golden-train/DesktopPet/issues" '
+            'style="color: #5ba3e6; text-decoration: none;">GitHub Issues</a>',
+            footer,
+        )
+        issue_link.setOpenExternalLinks(True)
+        issue_link.setStyleSheet("color: #888; font-size: 12px;")
+        fl.addWidget(issue_link)
+        fl.addStretch()
+        rp_layout.addWidget(footer)
+
+        # ── 组装 ─────────────────────────────────────────────
+        splitter.addWidget(self._list)
+        splitter.addWidget(right_panel)
+        splitter.setSizes([170, 500])
+        self._content_layout.addWidget(splitter, 1)
+
+        # 连接信号
+        self._list.currentRowChanged.connect(self._on_topic_changed)
+
+
+    # ── 构建页面 ────────────────────────────────────────────
+
+    def _build_page(self, content_builder) -> QWidget:
+        page = QWidget(self._stack)
+        scroll = QScrollArea(page)
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.NoFrame)
-        scroll.setStyleSheet("QScrollArea { background: transparent; }"
-                             "QScrollBar:vertical { width: 6px; }")
+        scroll.setStyleSheet(
+            "QScrollArea { background: transparent; }"
+            "QScrollBar:vertical { width: 6px; }"
+        )
+        inner = QWidget(scroll)
+        inner.setStyleSheet("background: transparent;")
+        cl = QVBoxLayout(inner)
+        cl.setContentsMargins(8, 4, 16, 4)
+        cl.setSpacing(12)
 
-        content = QWidget(scroll)
-        content.setStyleSheet("background: transparent;")
-        cl = QVBoxLayout(content)
-        cl.setContentsMargins(0, 0, 12, 0)
-        cl.setSpacing(20)
+        content_builder(cl, inner)
 
-        # ═══════════════════════════════════════════════════
-        # 一、总体使用说明
-        # ═══════════════════════════════════════════════════
-        cl.addWidget(self._section_title("📖 总体使用说明"))
+        cl.addStretch()
+        scroll.setWidget(inner)
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(scroll)
+        return page
 
+    # ── 第1页：总体使用说明 ───────────────────────────────
+
+    def _page_usage(self, cl, parent):
         cl.addWidget(self._sub_title("基本操作"))
         cl.addWidget(self._text(
             "• 鼠标左键点击角色 → 触发互动动画（上半区比心，下半区蹭蹭）<br>"
@@ -746,7 +846,6 @@ class _HelpPage(_PageBase):
             "• 鼠标右键 → 弹出功能菜单<br>"
             "• 鼠标滚轮或双击 → 触发特殊动作"
         ))
-
         cl.addWidget(self._sub_title("右键菜单"))
         cl.addWidget(self._text(
             "• 打开聊天 → 与 AI 角色对话（需先配置 API Key）<br>"
@@ -755,7 +854,6 @@ class _HelpPage(_PageBase):
             "• 设置... → 打开详细设置窗口<br>"
             "• 退出 → 关闭程序"
         ))
-
         cl.addWidget(self._sub_title("AI 对话"))
         cl.addWidget(self._text(
             "1. 右键 → 设置 → AI 配置，填写 API Key 和接口地址<br>"
@@ -763,7 +861,6 @@ class _HelpPage(_PageBase):
             "3. AI 回复中嵌入 [动作名] 可自动触发角色动画<br>"
             "4. 在 AI 配置页可使用「AI 生成提示词」快速创建角色设定"
         ))
-
         cl.addWidget(self._sub_title("语音系统"))
         cl.addWidget(self._text(
             "• 设置 → 音频 → 开启启动/关闭语音<br>"
@@ -771,12 +868,9 @@ class _HelpPage(_PageBase):
             "• 扩展 → 闲时语音 → 角色每隔一段时间随机说话"
         ))
 
-        # ═══════════════════════════════════════════════════
-        # 二、模型导入向导
-        # ═══════════════════════════════════════════════════
-        cl.addWidget(self._divider())
-        cl.addWidget(self._section_title("🧑 导入像素小人角色"))
+    # ── 第2页：像素小人导入 ───────────────────────────────
 
+    def _page_pixel_import(self, cl, parent):
         cl.addWidget(self._text(
             "在 设置 → 模型 → 导入新角色，选择包含以下结构的文件夹："
         ))
@@ -798,9 +892,9 @@ class _HelpPage(_PageBase):
             "导入后可在模型页面切换角色，不支持行走的角色会自动禁用行走菜单。"
         ))
 
-        cl.addWidget(self._divider())
-        cl.addWidget(self._section_title("🎭 导入 Live2D 模型"))
+    # ── 第3页：Live2D 导入 ───────────────────────────────
 
+    def _page_live2d_import(self, cl, parent):
         cl.addWidget(self._text(
             "在 设置 → 模型 → 导入新模型，选择包含以下结构的文件夹："
         ))
@@ -819,9 +913,9 @@ class _HelpPage(_PageBase):
             "系统已内置「流萤」「椿」两个 Live2D 模型可直接使用。"
         ))
 
-        cl.addWidget(self._divider())
-        cl.addWidget(self._section_title("🔧 常见问题"))
+    # ── 第4页：常见问题 ───────────────────────────────────
 
+    def _page_faq(self, cl, parent):
         cl.addWidget(self._text(
             "<b>导入提示缺少 Standby？</b><br>"
             "actions/Standby/ 目录是必需的，放入至少一张 PNG 图片。<br><br>"
@@ -830,25 +924,18 @@ class _HelpPage(_PageBase):
             "<b>导入后不显示？</b><br>"
             "检查图片格式（PNG/JPG/WebP），尝试在设置中调整缩放倍数。<br><br>"
             "<b>Live2D 不显示？</b><br>"
-            "确保 .model3.json 中引用的贴图路径正确且文件存在。"
+            "确保 .model3.json 中引用的贴图路径正确且文件存在。<br><br>"
+            "<b>自定义语音不播放？</b><br>"
+            "使用 .wav 格式（兼容性最好），确保文件放在对应目录下。"
         ))
 
-        cl.addStretch()
+    # ── 信号 ────────────────────────────────────────────────
 
-        scroll.setWidget(content)
-        self._content_layout.addWidget(scroll, 1)
+    def _on_topic_changed(self, row: int) -> None:
+        if 0 <= row < self._stack.count():
+            self._stack.setCurrentIndex(row)
 
-    # ── 内容辅助方法 ────────────────────────────────────────
-
-    @staticmethod
-    def _section_title(text: str) -> QLabel:
-        lbl = QLabel(text)
-        tf = QFont()
-        tf.setPointSize(15)
-        tf.setBold(True)
-        lbl.setFont(tf)
-        lbl.setStyleSheet("color: #e0e0e0; padding: 4px 0;")
-        return lbl
+    # ── 样式辅助 ────────────────────────────────────────────
 
     @staticmethod
     def _sub_title(text: str) -> QLabel:
@@ -857,7 +944,7 @@ class _HelpPage(_PageBase):
         tf.setPointSize(13)
         tf.setBold(True)
         lbl.setFont(tf)
-        lbl.setStyleSheet("color: #5ba3e6; padding: 2px 0;")
+        lbl.setStyleSheet("color: #5ba3e6; padding: 4px 0;")
         return lbl
 
     @staticmethod
@@ -877,13 +964,6 @@ class _HelpPage(_PageBase):
             "padding: 12px; line-height: 1.5;"
         )
         return lbl
-
-    @staticmethod
-    def _divider() -> QFrame:
-        line = QFrame()
-        line.setFrameShape(QFrame.HLine)
-        line.setStyleSheet("color: #333;")
-        return line
 
 
 # ═══════════════════════════════════════════════════════════════
