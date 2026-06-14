@@ -131,8 +131,8 @@ class ImportWizard(QDialog):
         self._content_widget = QWidget(scroll)
         self._content_widget.setStyleSheet("background: transparent;")
         self._content_layout = QVBoxLayout(self._content_widget)
-        self._content_layout.setContentsMargins(0, 0, 0, 0)
-        self._content_layout.setSpacing(12)
+        self._content_layout.setContentsMargins(0, 0, 8, 0)
+        self._content_layout.setSpacing(16)
         scroll.setWidget(self._content_widget)
         main_layout.addWidget(scroll, 1)
 
@@ -386,20 +386,22 @@ class ImportWizard(QDialog):
         overview.setStyleSheet(_DESC_STYLE)
         self._content_layout.addWidget(overview)
 
-        self._content_layout.addSpacing(8)
+        self._content_layout.addSpacing(12)
 
         # 错误列表（红色）
         for err in report.get("errors", []):
             err_label = QLabel(f"✗ {err}", self._content_widget)
-            err_label.setStyleSheet(_VALID_RED)
+            err_label.setStyleSheet(_VALID_RED + "padding: 2px 0;")
             err_label.setWordWrap(True)
+            err_label.setMinimumHeight(20)
             self._content_layout.addWidget(err_label)
 
         # 警告列表（黄色）
         for warn in report.get("warnings", []):
             warn_label = QLabel(f"⚠ {warn}", self._content_widget)
-            warn_label.setStyleSheet(_VALID_YELLOW)
+            warn_label.setStyleSheet(_VALID_YELLOW + "padding: 2px 0;")
             warn_label.setWordWrap(True)
+            warn_label.setMinimumHeight(20)
             self._content_layout.addWidget(warn_label)
 
         # 动作列表
@@ -409,7 +411,8 @@ class ImportWizard(QDialog):
                 f"已发现动作: {', '.join(report['actions_found'])}",
                 self._content_widget,
             )
-            actions_label.setStyleSheet(_VALID_GREEN)
+            actions_label.setStyleSheet(_VALID_GREEN + "padding: 4px 0;")
+            actions_label.setWordWrap(True)
             self._content_layout.addWidget(actions_label)
 
         if report.get("actions_empty"):
@@ -417,26 +420,29 @@ class ImportWizard(QDialog):
                 f"空动作目录: {', '.join(report['actions_empty'])}",
                 self._content_widget,
             )
-            empty_label.setStyleSheet(_VALID_YELLOW)
+            empty_label.setStyleSheet(_VALID_YELLOW + "padding: 2px 0;")
+            empty_label.setWordWrap(True)
             self._content_layout.addWidget(empty_label)
+
+        self._content_layout.addSpacing(8)
 
         if report.get("has_model_json"):
             name_text = report.get("model_name", "")
             name_info = f" (名称: {name_text})" if name_text else ""
             json_label = QLabel(f"✓ 存在 model.json{name_info}", self._content_widget)
-            json_label.setStyleSheet(_VALID_GREEN)
+            json_label.setStyleSheet(_VALID_GREEN + "padding: 4px 0;")
             self._content_layout.addWidget(json_label)
 
         # 行走能力
         walk_text = "🚶 支持行走" if report.get("has_walking") else "🚶 不支持行走（缺少 left/right）"
         walk_label = QLabel(walk_text, self._content_widget)
-        walk_label.setStyleSheet(_VALID_GREEN if report.get("has_walking") else _VALID_YELLOW)
+        walk_label.setStyleSheet((_VALID_GREEN if report.get("has_walking") else _VALID_YELLOW) + "padding: 4px 0;")
         self._content_layout.addWidget(walk_label)
 
         # 语音
         voice_text = "🎤 有语音包" if report.get("voice_available") else "🎤 无语音包"
         voice_label = QLabel(voice_text, self._content_widget)
-        voice_label.setStyleSheet(_VALID_GREEN if report.get("voice_available") else _VALID_YELLOW)
+        voice_label.setStyleSheet((_VALID_GREEN if report.get("voice_available") else _VALID_YELLOW) + "padding: 4px 0;")
         self._content_layout.addWidget(voice_label)
 
         self._content_layout.addStretch()
@@ -458,25 +464,31 @@ class ImportWizard(QDialog):
         self._content_layout.addSpacing(12)
 
         # 源目录信息
-        src_info = QLabel(
-            f"源目录: {self._source_dir}",
-            self._content_widget,
+        src_widget = QFrame(self._content_widget)
+        src_widget.setStyleSheet(
+            "background: #1a1a2a; border: 1px solid #333; border-radius: 6px; padding: 10px;"
         )
-        src_info.setStyleSheet("color: #ccc; font-size: 12px; padding: 4px;")
+        src_layout = QVBoxLayout(src_widget)
+        src_layout.setContentsMargins(0, 0, 0, 0)
+        src_layout.setSpacing(4)
+
+        src_info = QLabel(f"源目录: {self._source_dir}", src_widget)
+        src_info.setStyleSheet("color: #ccc; font-size: 12px;")
         src_info.setWordWrap(True)
-        self._content_layout.addWidget(src_info)
+        src_layout.addWidget(src_info)
 
         report = self._validation_report
         summary = QLabel(
             f"{report.get('image_count', 0)} 张图片, "
             f"{report.get('audio_count', 0)} 个音频文件, "
             f"{len(report.get('actions_found', []))} 个动作",
-            self._content_widget,
+            src_widget,
         )
         summary.setStyleSheet("color: #aaa; font-size: 12px;")
-        self._content_layout.addWidget(summary)
+        src_layout.addWidget(summary)
 
-        self._content_layout.addSpacing(12)
+        self._content_layout.addWidget(src_widget)
+        self._content_layout.addSpacing(16)
 
         # 目标 ID 输入
         id_layout = QHBoxLayout()

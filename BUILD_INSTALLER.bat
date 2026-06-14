@@ -37,6 +37,14 @@ if not exist "dist\DesktopPet\DesktopPet.exe" (
     echo [SKIP] Build already exists, using dist\DesktopPet\
 )
 
+REM 确保打包版首次启动显示许可协议
+set "MAIN_JSON=dist\DesktopPet\_internal\data\config\main.json"
+if not exist "%MAIN_JSON%" set "MAIN_JSON=dist\DesktopPet\data\config\main.json"
+if exist "%MAIN_JSON%" (
+    powershell -Command "(Get-Content '%MAIN_JSON%') -replace '\"license_accepted\":\s*true', '\"license_accepted\": false' | Set-Content '%MAIN_JSON%' -Encoding UTF8"
+    echo [INFO] License reset to false for first-time users
+)
+
 echo [1/2] Done.
 echo.
 
