@@ -892,6 +892,19 @@ class _HelpPage(_PageBase):
             "支持 PNG/JPG/WebP/GIF 图片格式，WAV/MP3/Ogg 音频格式。<br>"
             "导入后可在模型页面切换角色，不支持行走的角色会自动禁用行走菜单。"
         ))
+        cl.addWidget(self._sub_title("model.json 模板"))
+        cl.addWidget(self._code(
+            "{\n"
+            '    "name": "角色名",\n'
+            '    "version": "1.0",\n'
+            '    "author": "作者",\n'
+            '    "description": "简短描述",\n'
+            '    "has_walking": true\n'
+            "}"
+        ))
+        cl.addWidget(self._text(
+            "将以上内容保存为 ``model.json`` 放在模型根目录，导入时系统自动读取角色信息。"
+        ))
 
     # ── 第3页：Live2D 导入 ───────────────────────────────
 

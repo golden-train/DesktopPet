@@ -8,7 +8,7 @@ echo.
 cd /d "%~dp0"
 
 REM --- Step 1: PyInstaller ---
-echo [1/2] Building with PyInstaller...
+echo [1/3] Building with PyInstaller...
 echo.
 
 if not exist "dist\DesktopPet\DesktopPet.exe" (
@@ -34,22 +34,27 @@ if not exist "dist\DesktopPet\DesktopPet.exe" (
 
     copy ".env.example" "dist\DesktopPet\.env.example" >nul
 ) else (
-    echo [SKIP] Build already exists, using dist\DesktopPet\
+    echo [SKIP] Build exists, using dist\DesktopPet\
 )
 
-REM 确保打包版首次启动显示许可协议
+echo [1/3] Done.
+echo.
+
+REM --- Step 2: Reset license for first-time users ---
+echo [2/3] Resetting license prompt for first-time users...
+
 set "MAIN_JSON=dist\DesktopPet\_internal\data\config\main.json"
 if not exist "%MAIN_JSON%" set "MAIN_JSON=dist\DesktopPet\data\config\main.json"
 if exist "%MAIN_JSON%" (
-    powershell -Command "(Get-Content '%MAIN_JSON%') -replace '\"license_accepted\":\s*true', '\"license_accepted\": false' | Set-Content '%MAIN_JSON%' -Encoding UTF8"
-    echo [INFO] License reset to false for first-time users
+    powershell -Command "(Get-Content '%MAIN_JSON%') -replace '\"license_accepted\":\s*true', '\"license_accepted\": false' | Set-Content '%MAIN_JSON%' -Encoding ASCII"
+    echo [INFO] License reset to false
 )
 
-echo [1/2] Done.
+echo [2/3] Done.
 echo.
 
-REM --- Step 2: Inno Setup Installer ---
-echo [2/2] Compiling Inno Setup installer...
+REM --- Step 3: Inno Setup Installer ---
+echo [3/3] Compiling Inno Setup installer...
 
 set ISCC=
 if exist "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" (
@@ -77,22 +82,12 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-echo [2/2] Done.
+echo [3/3] Done.
 echo.
 echo ============================================
 echo  SUCCESS!
 echo ============================================
 echo.
-echo  Installer: dist\DesktopPet_Setup_1.0.0.exe
-
-for %%I in ("dist\DesktopPet_Setup_1.0.0.exe") do (
-    set SIZE=%%~zI
-)
-setlocal enabledelayedexpansion
-echo  Size: !SIZE! bytes
-endlocal
-
-echo.
-echo  Original directory: dist\DesktopPet\
+echo  Output: dist\DesktopPet_Setup_1.2.0.exe
 echo.
 pause

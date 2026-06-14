@@ -14,10 +14,17 @@ DesktopPet 应用入口。
 
 import sys
 import re
+import os
 import logging
 from pathlib import Path
 from typing import Optional
 from datetime import datetime
+
+# Live2D WebGL 支持：强制 Chromium 启用 WebGL（Win10 默认禁用本地 WebGL）
+os.environ.setdefault(
+    "QTWEBENGINE_CHROMIUM_FLAGS",
+    "--ignore-gpu-blocklist --enable-webgl --disable-gpu-sandbox"
+)
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
