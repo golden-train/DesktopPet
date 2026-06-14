@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
     chat_requested = Signal()
     live2d_requested = Signal()
     walking_toggled = Signal()
+    console_toggled = Signal()
     quit_requested = Signal()
     # 生命周期信号（用于语音触发等）
     shown = Signal()
@@ -134,6 +135,12 @@ class MainWindow(QMainWindow):
         self._act_walk.setCheckable(True)
         self._act_walk.triggered.connect(self.walking_toggled.emit)
         self._menu.addAction(self._act_walk)
+
+        self._menu.addSeparator()
+
+        self._act_console = QAction("显示控制台", self)
+        self._act_console.triggered.connect(self.console_toggled.emit)
+        self._menu.addAction(self._act_console)
 
         self._menu.addSeparator()
 

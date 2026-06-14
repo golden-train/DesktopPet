@@ -209,6 +209,9 @@ class DesktopPetApplication:
         self.main_window.user_dragged.connect(
             self._on_user_dragged
         )
+        self.main_window.console_toggled.connect(
+            self._toggle_console
+        )
         self.main_window.quit_requested.connect(
             self._quit_app
         )
@@ -240,6 +243,22 @@ class DesktopPetApplication:
             self.walking.stop()
             if hasattr(self.main_window, '_act_walk'):
                 self.main_window._act_walk.setChecked(False)
+
+    @staticmethod
+    def _toggle_console() -> None:
+        """切换控制台显示/隐藏。"""
+        import ctypes
+        try:
+            kernel32 = ctypes.windll.kernel32
+            hwnd = kernel32.GetConsoleWindow()
+            if hwnd:
+                visible = kernel32.IsWindowVisible(hwnd)
+                kernel32.ShowWindow(hwnd, 0 if visible else 1)
+            else:
+                # 没有控制台则创建一个
+                kernel32.AllocConsole()
+        except Exception as e:
+            logger.debug("控制台切换失败: %s", e)
 
     def _on_chat_moved(self) -> None:
         """聊天窗口拖动时，角色持续跟随。"""

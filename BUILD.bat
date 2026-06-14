@@ -15,7 +15,7 @@ echo [1/3] 正在打包，请耐心等待...
 
 pyinstaller --noconfirm ^
     --onedir ^
-    --console ^
+    --windowed ^
     --name "DesktopPet" ^
     --icon "data\assets\images\firefly\icon\icon.ico" ^
     --add-data "data;data" ^
