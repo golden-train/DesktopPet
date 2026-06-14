@@ -10,10 +10,11 @@ from PySide6.QtWidgets import QMainWindow, QMenu, QWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 
-from src.live2d.server import Live2DServer
+from src.live2d.server import Live2DServer, AVAILABLE_MODELS as SERVER_MODELS
 
 logger = logging.getLogger(__name__)
 
+# 模型显示名 → 路由名 映射
 AVAILABLE_MODELS = {"流萤": "firefly", "椿": "chun"}
 DRAG_BAR_H = 28
 

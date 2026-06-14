@@ -86,7 +86,10 @@ class DesktopPetApplication:
         self._bg_image: str = ""
         self._verify_config()
 
-        # 3b. 应用主题
+        # 3b. 首次运行许可协议
+        self._check_license()
+
+        # 3c. 应用主题
         self._apply_theme()
 
         # 4. 语音服务
@@ -135,6 +138,19 @@ class DesktopPetApplication:
         self._loading.set_status("启动完成")
         self.main_window.show()
         self._loading.finish()
+
+    def _check_license(self) -> None:
+        """首次运行显示许可协议弹窗。"""
+        if self.config.get("main", "license_accepted", False):
+            return
+        from src.widgets.license_dialog import LicenseDialog
+        dialog = LicenseDialog()
+        result = dialog.exec()
+        if result != LicenseDialog.Accepted:
+            logger.info("用户未接受许可协议，退出")
+            sys.exit(0)
+        self.config.set("main", "license_accepted", True)
+        logger.info("用户已接受许可协议")
 
     def _get_idle_interval_ms(self) -> int:
         """获取闲时语音间隔（毫秒），默认 10 分钟。"""

@@ -1,4 +1,16 @@
 {
-  "current_model": "firefly",
-  "server_port": 8687
+    "current_model": "firefly",
+    "server_port": 8687,
+    "models": {
+        "firefly": {
+            "name": "流萤",
+            "model_dir": "Firefly",
+            "model_file": "Firefly.model3.json"
+        },
+        "chun": {
+            "name": "椿",
+            "model_dir": "chun",
+            "model_file": "椿.model3.json"
+        }
+    }
 }
