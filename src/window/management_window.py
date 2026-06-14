@@ -22,6 +22,7 @@ from qfluentwidgets import (
 
 from src.core.config import ConfigManager
 from src.window.main_window import MainWindow
+from src.window.model_interface import ModelInterface
 from src.ai.providers import PROVIDERS, get_provider_names, detect_provider
 from src.widgets.prompt_manager import PromptManager
 from src.widgets.skill_manager import SkillManager
@@ -59,6 +60,7 @@ class ManagementWindow(MSFluentWindow):
         # 关闭此窗口不应退出程序
         self.setAttribute(Qt.WA_QuitOnClose, False)
         self.home_page = _HomePage(self)
+        self.model_page = ModelInterface(self._config, self)
         self.settings_page = _SettingsPage(self._config, self._main_window, self)
         self.extend_page = _ExtendPage(self._config, self)
         self.ai_config_page = _AIConfigPage(self._config, self)
@@ -66,6 +68,7 @@ class ManagementWindow(MSFluentWindow):
 
         # ── 注册导航项 ──────────────────────────────────────
         self.addSubInterface(self.home_page, FluentIcon.HOME, "主页")
+        self.addSubInterface(self.model_page, FluentIcon.PEOPLE, "模型")
         self.addSubInterface(self.settings_page, FluentIcon.SETTING, "设置")
         self.addSubInterface(self.extend_page, FluentIcon.LEAF, "扩展")
         self.addSubInterface(self.ai_config_page, FluentIcon.ROBOT, "AI 配置")

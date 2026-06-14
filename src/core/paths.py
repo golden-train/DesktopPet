@@ -60,6 +60,10 @@ ICON_DIR = IMAGES_DIR / "icon"
 FIREFLY_ICON_DIR = FIREFLY_DIR / "icon"
 AUDIO_FIREFLY_DIR = AUDIO_DIR / "firefly"
 
+# ── 用户导入的自定义模型目录（可写）────────────────────────
+CUSTOM_MODELS_DIR = USER_DIR / "data" / "assets" / "images" / "custom"
+CUSTOM_AUDIO_DIR = USER_DIR / "data" / "audio" / "custom"
+
 # ── .env 文件路径（始终在用户可写目录）─────────────────────
 ENV_PATH = USER_DIR / ".env"
 
@@ -75,6 +79,8 @@ _USER_REQUIRED_DIRS = [
     USER_CONFIG_DIR,
     USER_DIR / "data" / "audio",
     USER_DIR / "data" / "assets" / "images",
+    USER_DIR / "data" / "assets" / "images" / "custom",
+    USER_DIR / "data" / "audio" / "custom",
     LOGS_DIR,
 ]
 

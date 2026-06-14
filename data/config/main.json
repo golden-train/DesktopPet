@@ -3,5 +3,7 @@
   "currentBgImage": "data\\assets\\images\\firefly\\default\\bg.png",
   "is_play_VoiceOnStart": false,
   "is_play_VoiceOnClose": false,
-  "theme": "dark"
+  "theme": "dark",
+  "license_accepted": true,
+  "current_model": "firefly"
 }
