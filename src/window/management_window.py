@@ -143,11 +143,12 @@ class _HomePage(_PageBase):
     def __init__(self, parent=None):
         super().__init__("主页", "欢迎使用桌面宠物", parent)
         info = QLabel(
-            "桌面宠物 —— 一个常驻桌面的互动角色，支援 AI 对话、Live2D 模型、电池状态语音提醒。\n\n"
-            "当前阶段：Phase 3 — AI 对话\n\n"
+            "桌面宠物 —— 一个常驻桌面的互动角色，支援 AI 对话、Live2D 模型，和自由导入模型。\n\n"
             "功能导航：\n"
             "  • 设置 → 角色显示与音频\n"
             "  • AI 配置 → API Key / 模型 / 供应商\n"
+            "  • 模型 → 选择模型，或者自定义一个模型\n"
+            "  • 帮助 → 程序的使用方法，模型导入方法及要求\n"
             "  • 关于 → 版本与开源信息",
             self
         )
@@ -977,12 +978,14 @@ class _AboutPage(_PageBase):
         info.setWordWrap(True)
         info.setOpenExternalLinks(True)
         info.setText(
-            "DesktopPet v0.3.0 — Phase 3<br><br>"
+            "DesktopPet v1.0.0"
             "基于 PySide6 + qfluentwidgets + OpenAI SDK 构建<br>"
-            "遵循 GPL 协议开源<br><br>"
-            'GitHub: <a href="https://github.com/golden-train/DesktopPet" '
+            "遵循 AGPL 协议开源<br><br>"
+            'GitHub项目地址: <a href="https://github.com/golden-train/DesktopPet" '
             'style="color: #5ba3e6; text-decoration: none;">'
             "github.com/golden-train/DesktopPet</a>"
+            "本项目灵感来源于Github PYmili老师https://github.com/PYmili/MyFlowingFireflyWife项目，但是技术路线不完全相同，同时在其已经实现的基础上增加了许多新功能同时适配了AI对话"
+
         )
         info.setStyleSheet("font-size: 13px; color: #ccc;")
         self._content_layout.addWidget(info)
