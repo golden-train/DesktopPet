@@ -434,12 +434,17 @@ class DesktopPetApplication:
             # 取前 40 字作为弹窗内容
             PopupWindow(text[:60], duration_ms=4000)
 
-    @staticmethod
-    def _parse_animation_marker(text: str) -> Optional[str]:
-        """从文本中提取 [动作名] 标记，返回动作名或 None。"""
+    def _parse_animation_marker(self, text: str) -> Optional[str]:
+        """从文本中提取 [动作名] 标记，返回当前模型支持的动作名或 None。"""
         match = re.search(r'\[(\w+)\]', text)
-        if match and match.group(1) in ANIMATION_MARKERS:
-            return match.group(1)
+        if match:
+            action = match.group(1)
+            # 优先检查当前模型是否支持此动作
+            if self.animation.has_model_action(action):
+                return action
+            # 也接受预定义的常用标记
+            if action in ANIMATION_MARKERS:
+                return action
         return None
 
     def _place_window(self) -> None:

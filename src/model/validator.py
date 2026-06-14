@@ -16,28 +16,17 @@ logger = logging.getLogger(__name__)
 # 必需动作（缺少则导入失败）
 REQUIRED_ACTIONS = {"Standby"}
 
-# 可选动作（缺少仅警告，不阻塞导入）
-OPTIONAL_ACTIONS = {
-    "mention", "sleep", "discomfort", "love", "eat",
-    "left", "right",
-}
-
 # 支持的图片扩展名
 SUPPORTED_IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
 
 # 支持的音频扩展名
 SUPPORTED_AUDIO_EXTS = {".wav", ".mp3", ".ogg"}
 
-# 模型中可识别的动作目录
-ALL_ACTIONS = REQUIRED_ACTIONS | OPTIONAL_ACTIONS
-
 
 class ModelValidator:
     """校验用户导入的模型目录结构完整性。"""
 
-    # 对外暴露常量
     REQUIRED_ACTIONS = REQUIRED_ACTIONS
-    OPTIONAL_ACTIONS = OPTIONAL_ACTIONS
     SUPPORTED_IMAGE_EXTS = SUPPORTED_IMAGE_EXTS
     SUPPORTED_AUDIO_EXTS = SUPPORTED_AUDIO_EXTS
 
@@ -101,30 +90,34 @@ class ModelValidator:
         if not actions_dir.is_dir():
             report["valid"] = False
             report["errors"].append("缺少 actions/ 目录")
-            # 提前返回，因为不可能有任何动作
             return report
 
-        for action in ALL_ACTIONS:
-            action_path = actions_dir / action
-
+        # 扫描 actions/ 下所有子目录，用户可自定义任意动作名
+        found_standby = False
+        for action_path in sorted(actions_dir.iterdir()):
             if not action_path.is_dir():
-                # 目录完全不存在
-                if action in REQUIRED_ACTIONS:
-                    report["errors"].append(f"缺少必需动作: {action}")
-                # 可选动作不报 error，只是不添加到 found 列表
                 continue
+            action_name = action_path.name
 
-            # 检查是否有有效图片
+            # 大小写归一化：standby/Standby/STANDBY 都视为 Standby
+            display_name = "Standby" if action_name.lower() == "standby" else action_name
+            if display_name == "Standby":
+                found_standby = True
+
             images = ModelValidator._collect_images(action_path)
             if not images:
-                report["actions_empty"].append(action)
-                if action in REQUIRED_ACTIONS:
-                    report["errors"].append(f"必需动作 '{action}' 目录中没有有效图片")
+                report["actions_empty"].append(display_name)
+                if display_name in REQUIRED_ACTIONS:
+                    report["errors"].append(f"必需动作 '{action_name}' 目录中没有有效图片")
                 else:
-                    report["warnings"].append(f"可选动作 '{action}' 目录为空，对应功能将不可用")
+                    report["warnings"].append(f"动作 '{action_name}' 目录为空")
             else:
-                report["actions_found"].append(action)
+                report["actions_found"].append(display_name)
                 report["image_count"] += len(images)
+
+        # 检查必需动作 Standby
+        if not found_standby:
+            report["errors"].append("缺少必需动作: Standby")
 
         # ── 行走能力判断 ──────────────────────────────────────
         report["has_walking"] = ModelValidator.is_walkable(report)

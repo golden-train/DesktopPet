@@ -25,7 +25,9 @@ ANIMATION_MARKERS = {
 
 _MARKER_INSTRUCTION = (
     "\n\n你可以在回复中插入动作标记来表现情绪，格式为 [动作名]。"
-    f"支持的动作：{', '.join(f'[{k}]{v}' for k, v in ANIMATION_MARKERS.items())}。"
+    "常用的动作有："
+    f"{', '.join(f'[{k}]{v}' for k, v in ANIMATION_MARKERS.items())}。"
+    "你也可以使用其他自定义动作名。"
     "多个标记时只取第一个。"
 )
 

@@ -17,11 +17,11 @@ from src.core.paths import BUNDLE_DIR, USER_DIR
 
 logger = logging.getLogger(__name__)
 
-# ── 动作分类 ────────────────────────────────────────────────
-LOOP_ACTIONS = {"Standby", "mention", "sleep", "discomfort", "left", "right", "up", "down"}
-ONE_SHOT_ACTIONS = {"eat", "love"}
-WALK_ACTIONS = {"left", "right", "up", "down"}
-ALL_ACTIONS = LOOP_ACTIONS | ONE_SHOT_ACTIONS | WALK_ACTIONS
+# ── 默认动作分类（未被模型明确指定时使用）───────────────────
+# 循环动作：播完从头再播
+_LOOP_DEFAULT = {"Standby", "mention", "sleep", "discomfort", "left", "right", "up", "down"}
+# 一次性动作：播完回到 Standby
+_ONE_SHOT_DEFAULT = {"eat", "love"}
 
 # 图片文件扩展名
 _IMAGE_EXTS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp"}
@@ -37,11 +37,14 @@ class AnimationManager(QObject):
         super().__init__()
         self._config = config
 
-        # 动作名 → 目录绝对路径（从 action_pictures.json 或模型注册表加载）
+        # 动作名 → 目录绝对路径
         self._action_dirs: dict[str, str] = {}
 
         # 动作名 → 排序后的图片绝对路径列表（缓存）
         self._cache: dict[str, list[str]] = {}
+
+        # 动作名 → 是否循环（True=循环, False=一次性）
+        self._action_loop_flags: dict[str, bool] = {}
 
         # 当前状态
         self._current_action: str = "Standby"
@@ -96,8 +99,8 @@ class AnimationManager(QObject):
         """
         切换到指定角色模型。
 
-        参数:
-            model_info: 模型注册信息字典，必须有 ``id``、``dir``、``source_type``、``actions`` 等字段。
+        ``model_info`` 中可选的 ``loop_actions`` 字段指定哪些动作循环播放，
+        未指定的动作默认按 _LOOP_DEFAULT 判断，仍未知的默认循环。
         """
         model_id = model_info.get("id", "")
         if model_id == self._active_model_id and model_id != "firefly":
@@ -105,12 +108,31 @@ class AnimationManager(QObject):
             return
 
         self._apply_model_dirs(model_info)
+
+        # 设置每个动作的循环/一次性标志
+        explicit_loop = model_info.get("loop_actions")
+        if explicit_loop is not None:
+            # 用户显式指定了循环列表 → 在列表中的循环，不在的一次性
+            loop_set = set(explicit_loop)
+            for action_name in self._action_dirs:
+                self._action_loop_flags[action_name] = action_name in loop_set
+        else:
+            # 未指定 → 用默认规则
+            for action_name in self._action_dirs:
+                if action_name in _LOOP_DEFAULT:
+                    self._action_loop_flags[action_name] = True
+                elif action_name in _ONE_SHOT_DEFAULT:
+                    self._action_loop_flags[action_name] = False
+                else:
+                    # 完全未知的自定义动作，默认循环
+                    self._action_loop_flags[action_name] = True
+
         self._active_model_id = model_id
-        # 停用当前动作，切回 Standby
         self._current_action = "Standby"
         self._frame_index = 0
         self.switch_action("Standby")
-        logger.info("切换角色模型: %s (%s)", model_id, model_info.get("name", ""))
+        logger.info("切换角色模型: %s (%s), 动作: %s",
+                     model_id, model_info.get("name", ""), list(self._action_dirs.keys()))
 
     def has_model_action(self, action: str) -> bool:
         """检查当前角色模型是否支持指定动作。"""
@@ -135,7 +157,7 @@ class AnimationManager(QObject):
 
         # 帧指针超出 → 处理循环/结束
         if self._frame_index >= len(frames):
-            if action in LOOP_ACTIONS:
+            if self._action_loop_flags.get(action, True):
                 self._frame_index = 0
             else:
                 # 一次性动作播放完毕
@@ -178,11 +200,34 @@ class AnimationManager(QObject):
             except Exception as e:
                 logger.debug("无法应用模型 '%s': %s", current_model, e)
 
+        # 为所有默认动作设置循环标志（规则与 switch_model 一致）
+        for action_name in self._action_dirs:
+            if action_name in _LOOP_DEFAULT:
+                self._action_loop_flags[action_name] = True
+            elif action_name in _ONE_SHOT_DEFAULT:
+                self._action_loop_flags[action_name] = False
+            else:
+                self._action_loop_flags[action_name] = True
+
         # 预加载默认动作
         self.load_action("Standby")
 
     def _apply_model_dirs(self, model_info: dict) -> None:
-        """根据模型信息更新所有动作目录路径。"""
+        """
+        根据模型信息更新所有动作目录路径。
+
+        动作名大小写归一化规则：
+        - ``Standby`` / ``standby`` / ``STANDBY`` → 统一为 ``Standby``
+        - ``left`` / ``Left`` / ``LEFT`` → 统一为 ``left``（同上类推）
+        - 其他动作名保持原样（用户自定义名区分大小写）
+        """
+        _CASE_MAP = {
+            "standby": "Standby", "left": "left", "right": "right",
+            "up": "up", "down": "down", "mention": "mention",
+            "sleep": "sleep", "love": "love", "eat": "eat",
+            "discomfort": "discomfort",
+        }
+
         base = BUNDLE_DIR if model_info.get("source_type") == "bundled" else USER_DIR
         model_dir = base / model_info["dir"]
 
@@ -191,7 +236,8 @@ class AnimationManager(QObject):
         if actions_dir.is_dir():
             for subdir in sorted(actions_dir.iterdir()):
                 if subdir.is_dir():
-                    new_dirs[subdir.name] = str(subdir.resolve())
+                    name = _CASE_MAP.get(subdir.name.lower(), subdir.name)
+                    new_dirs[name] = str(subdir.resolve())
 
         if not new_dirs:
             logger.warning("模型 '%s' 没有动作目录: %s", model_info.get("id", ""), actions_dir)
