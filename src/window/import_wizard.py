@@ -357,7 +357,7 @@ class ImportWizard(QDialog):
     # ── Step 3: 校验结果 ────────────────────────────────────
 
     def _render_step3_validate(self) -> None:
-        """展示校验报告。"""
+        """展示校验报告（全部内容放入独立结果框，避免布局干扰）。"""
         title = QLabel("校验结果", self._content_widget)
         title.setStyleSheet(_TITLE_STYLE)
         self._content_layout.addWidget(title)
@@ -367,85 +367,94 @@ class ImportWizard(QDialog):
         report = self._validation_report
         is_valid = report.get("valid", False)
 
-        # 状态图标
-        if is_valid:
-            status = QLabel("✅ 校验通过", self._content_widget)
-            status.setStyleSheet("font-size: 16px; color: #4caf50; font-weight: bold;")
-        else:
-            status = QLabel("❌ 校验未通过", self._content_widget)
-            status.setStyleSheet("font-size: 16px; color: #f44336; font-weight: bold;")
-        self._content_layout.addWidget(status)
+        # ── 结果框 ───────────────────────────────────────────
+        box = QFrame(self._content_widget)
+        box.setStyleSheet("""
+            QFrame {
+                background: #1a1a2a; border: 1px solid #333;
+                border-radius: 8px; padding: 16px;
+            }
+        """)
+        box_layout = QVBoxLayout(box)
+        box_layout.setContentsMargins(16, 12, 16, 12)
+        box_layout.setSpacing(8)
 
-        # 概览信息
+        # 状态 + 概览
+        status_text = "✅ 校验通过" if is_valid else "❌ 校验未通过"
+        status_color = "#4caf50" if is_valid else "#f44336"
+        header = QLabel(status_text, box)
+        header.setStyleSheet(f"font-size: 16px; color: {status_color}; font-weight: bold; padding: 0 0 4px 0;")
+        box_layout.addWidget(header)
+
         overview = QLabel(
             f"发现 {report.get('image_count', 0)} 张图片, "
             f"{report.get('audio_count', 0)} 个音频文件, "
             f"{len(report.get('actions_found', []))} 个动作",
-            self._content_widget,
+            box,
         )
-        overview.setStyleSheet(_DESC_STYLE)
-        self._content_layout.addWidget(overview)
+        overview.setStyleSheet("color: #aaa; font-size: 12px; padding: 0 0 8px 0;")
+        box_layout.addWidget(overview)
 
-        self._content_layout.addSpacing(12)
+        # 分隔线
+        sep = QFrame(box)
+        sep.setFrameShape(QFrame.HLine)
+        sep.setStyleSheet("color: #333; padding: 0;")
+        box_layout.addWidget(sep)
 
         # 错误列表（红色）
         for err in report.get("errors", []):
-            err_label = QLabel(f"✗ {err}", self._content_widget)
-            err_label.setStyleSheet(_VALID_RED + "padding: 2px 0;")
-            err_label.setWordWrap(True)
-            err_label.setMinimumHeight(20)
-            self._content_layout.addWidget(err_label)
+            el = QLabel(f"✗ {err}", box)
+            el.setStyleSheet("color: #f44336; font-size: 13px; padding: 4px 0;")
+            el.setWordWrap(True)
+            box_layout.addWidget(el)
 
         # 警告列表（黄色）
         for warn in report.get("warnings", []):
-            warn_label = QLabel(f"⚠ {warn}", self._content_widget)
-            warn_label.setStyleSheet(_VALID_YELLOW + "padding: 2px 0;")
-            warn_label.setWordWrap(True)
-            warn_label.setMinimumHeight(20)
-            self._content_layout.addWidget(warn_label)
+            wl = QLabel(f"⚠ {warn}", box)
+            wl.setStyleSheet("color: #ff9800; font-size: 13px; padding: 4px 0;")
+            wl.setWordWrap(True)
+            box_layout.addWidget(wl)
+
+        # 如果有错误或警告，添加分隔
+        if report.get("errors") or report.get("warnings"):
+            sep2 = QFrame(box)
+            sep2.setFrameShape(QFrame.HLine)
+            sep2.setStyleSheet("color: #333; padding: 0;")
+            box_layout.addWidget(sep2)
 
         # 动作列表
         if report.get("actions_found"):
-            self._content_layout.addSpacing(8)
-            actions_label = QLabel(
+            al = QLabel(
                 f"已发现动作: {', '.join(report['actions_found'])}",
-                self._content_widget,
+                box,
             )
-            actions_label.setStyleSheet(_VALID_GREEN + "padding: 4px 0;")
-            actions_label.setWordWrap(True)
-            self._content_layout.addWidget(actions_label)
+            al.setStyleSheet("color: #4caf50; font-size: 13px; padding: 2px 0;")
+            al.setWordWrap(True)
+            box_layout.addWidget(al)
 
         if report.get("actions_empty"):
-            empty_label = QLabel(
+            el = QLabel(
                 f"空动作目录: {', '.join(report['actions_empty'])}",
-                self._content_widget,
+                box,
             )
-            empty_label.setStyleSheet(_VALID_YELLOW + "padding: 2px 0;")
-            empty_label.setWordWrap(True)
-            self._content_layout.addWidget(empty_label)
+            el.setStyleSheet("color: #ff9800; font-size: 13px; padding: 2px 0;")
+            el.setWordWrap(True)
+            box_layout.addWidget(el)
 
-        self._content_layout.addSpacing(8)
-
+        # 详细信息
+        info_lines = []
         if report.get("has_model_json"):
             name_text = report.get("model_name", "")
-            name_info = f" (名称: {name_text})" if name_text else ""
-            json_label = QLabel(f"✓ 存在 model.json{name_info}", self._content_widget)
-            json_label.setStyleSheet(_VALID_GREEN + "padding: 4px 0;")
-            self._content_layout.addWidget(json_label)
+            info_lines.append(f"✓ 存在 model.json ({name_text})" if name_text else "✓ 存在 model.json")
+        info_lines.append("🚶 支持行走" if report.get("has_walking") else "🚶 不支持行走（缺少 left/right）")
+        info_lines.append("🎤 有语音包" if report.get("voice_available") else "🎤 无语音包")
 
-        # 行走能力
-        walk_text = "🚶 支持行走" if report.get("has_walking") else "🚶 不支持行走（缺少 left/right）"
-        walk_label = QLabel(walk_text, self._content_widget)
-        walk_label.setStyleSheet((_VALID_GREEN if report.get("has_walking") else _VALID_YELLOW) + "padding: 4px 0;")
-        self._content_layout.addWidget(walk_label)
+        info_label = QLabel("\n".join(info_lines), box)
+        info_label.setStyleSheet("color: #bbb; font-size: 13px; padding: 4px 0; line-height: 1.6;")
+        box_layout.addWidget(info_label)
 
-        # 语音
-        voice_text = "🎤 有语音包" if report.get("voice_available") else "🎤 无语音包"
-        voice_label = QLabel(voice_text, self._content_widget)
-        voice_label.setStyleSheet((_VALID_GREEN if report.get("voice_available") else _VALID_YELLOW) + "padding: 4px 0;")
-        self._content_layout.addWidget(voice_label)
-
-        self._content_layout.addStretch()
+        self._content_layout.addWidget(box, 1)  # stretch=1 占满空间
+        self._content_layout.addStretch(0)
 
         self._next_btn.setEnabled(is_valid)
 
