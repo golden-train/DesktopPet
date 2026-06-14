@@ -34,6 +34,7 @@ class MainWindow(QMainWindow):
     # 菜单信号
     settings_requested = Signal()
     chat_requested = Signal()
+    live2d_requested = Signal()
     quit_requested = Signal()
     # 生命周期信号（用于语音触发等）
     shown = Signal()
@@ -121,6 +122,10 @@ class MainWindow(QMainWindow):
         self._act_chat = QAction("打开聊天", self)
         self._act_chat.triggered.connect(self.chat_requested.emit)
         self._menu.addAction(self._act_chat)
+
+        self._act_live2d = QAction("Live2D 查看器", self)
+        self._act_live2d.triggered.connect(self.live2d_requested.emit)
+        self._menu.addAction(self._act_live2d)
 
         self._menu.addSeparator()
 

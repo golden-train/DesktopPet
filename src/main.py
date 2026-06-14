@@ -38,6 +38,7 @@ from src.ai.prompts import ANIMATION_MARKERS
 from src.voice.service import VoiceService
 from src.extends.battery_voice.main import BatteryMonitor
 from qfluentwidgets import setTheme, Theme
+from src.live2d.server import Live2DServer
 
 logger = logging.getLogger(__name__)
 
@@ -96,8 +97,13 @@ class DesktopPetApplication:
         # 8. 延迟显示的窗口
         self.management_window: Optional[ManagementWindow] = None
         self.chat_window: Optional[ChatWindow] = None
+        self.live2d_viewer: Optional[Live2DViewer] = None
 
-        # 9. 连接信号
+        # 9. Live2D 服务器
+        self.live2d_server = Live2DServer()
+        self.live2d_server.start()
+
+        # 10. 连接信号
         self._connect_signals()
 
         # 10. 电池监控
@@ -161,6 +167,9 @@ class DesktopPetApplication:
         self.main_window.chat_requested.connect(
             self._open_chat
         )
+        self.main_window.live2d_requested.connect(
+            self._open_live2d
+        )
         self.main_window.quit_requested.connect(
             self._quit_app
         )
@@ -208,7 +217,11 @@ class DesktopPetApplication:
         if self._battery_monitor:
             self._battery_monitor.stop()
             self._battery_monitor.wait(2000)
+        # 停止 Live2D 服务器
+        self.live2d_server.stop()
         # 清理子窗口
+        if self.live2d_viewer and self.live2d_viewer.isVisible():
+            self.live2d_viewer.close()
         if self.chat_window and self.chat_window.isVisible():
             self.chat_window.close()
         if self.management_window and self.management_window.isVisible():
@@ -267,6 +280,20 @@ class DesktopPetApplication:
             # 角色走过去
             anim = self.main_window.animate_to(char_x, char_y, duration=1000)
             anim.finished.connect(self.chat_window.show)
+
+    def _open_live2d(self) -> None:
+        """打开 Live2D 查看器。"""
+        if self.live2d_viewer is None:
+            from src.live2d.viewer import Live2DViewer
+            self.live2d_viewer = Live2DViewer(self.live2d_server)
+            self.live2d_viewer.closed.connect(
+                lambda: logger.info("Live2D 查看器已关闭")
+            )
+        if self.live2d_viewer.isVisible():
+            self.live2d_viewer.raise_()
+            self.live2d_viewer.activateWindow()
+        else:
+            self.live2d_viewer.show()
 
     # ── AI 回复处理（文档 §4.3）────────────────────────────
 
