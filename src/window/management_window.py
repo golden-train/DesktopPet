@@ -24,6 +24,7 @@ from src.core.config import ConfigManager
 from src.window.main_window import MainWindow
 from src.ai.providers import PROVIDERS, get_provider_names, detect_provider
 from src.widgets.prompt_manager import PromptManager
+from src.widgets.skill_manager import SkillManager
 
 logger = logging.getLogger(__name__)
 
@@ -59,12 +60,14 @@ class ManagementWindow(MSFluentWindow):
         self.setAttribute(Qt.WA_QuitOnClose, False)
         self.home_page = _HomePage(self)
         self.settings_page = _SettingsPage(self._config, self._main_window, self)
+        self.extend_page = _ExtendPage(self._config, self)
         self.ai_config_page = _AIConfigPage(self._config, self)
         self.about_page = _AboutPage(self)
 
         # ── 注册导航项 ──────────────────────────────────────
         self.addSubInterface(self.home_page, FluentIcon.HOME, "主页")
         self.addSubInterface(self.settings_page, FluentIcon.SETTING, "设置")
+        self.addSubInterface(self.extend_page, FluentIcon.LEAF, "扩展")
         self.addSubInterface(self.ai_config_page, FluentIcon.ROBOT, "AI 配置")
         self.addSubInterface(self.about_page, FluentIcon.INFO, "关于")
 
@@ -144,6 +147,54 @@ class _HomePage(_PageBase):
         info.setWordWrap(True)
         info.setStyleSheet("font-size: 13px; line-height: 1.6; color: #ccc;")
         self._content_layout.addWidget(info)
+        self._content_layout.addStretch()
+
+
+# ═══════════════════════════════════════════════════════════════
+# 扩展管理页面
+# ═══════════════════════════════════════════════════════════════
+
+class _ExtendPage(_PageBase):
+    """扩展管理页面——开关电池监控等功能。"""
+
+    def __init__(self, config: ConfigManager, parent=None):
+        super().__init__("扩展", "管理桌面宠物的扩展功能", parent)
+        self._config = config
+
+        # ── 电池监控 ────────────────────────────────────────
+        battery_group = SettingCardGroup("电池语音", self)
+        self._content_layout.addWidget(battery_group)
+
+        self._battery_card = SwitchSettingCard(
+            FluentIcon.POWER_BUTTON, "电池状态监控",
+            "检测电源插拔和电量变化，自动播放对应语音",
+            configItem=None, parent=battery_group,
+        )
+        self._battery_card.switchButton.setChecked(
+            config.get("main", "enable_battery_monitor", True)
+        )
+        self._battery_card.switchButton.checkedChanged.connect(
+            lambda c: config.set("main", "enable_battery_monitor", c)
+        )
+        battery_group.addSettingCard(self._battery_card)
+
+        # ── 闲时语音 ────────────────────────────────────────
+        idle_group = SettingCardGroup("闲时语音", self)
+        self._content_layout.addWidget(idle_group)
+
+        self._idle_card = SwitchSettingCard(
+            FluentIcon.MUSIC, "随机闲时语音",
+            "每隔一段时间自动播放随机语音",
+            configItem=None, parent=idle_group,
+        )
+        self._idle_card.switchButton.setChecked(
+            config.get("main", "is_play_idle_voice", False)
+        )
+        self._idle_card.switchButton.checkedChanged.connect(
+            lambda c: config.set("main", "is_play_idle_voice", c)
+        )
+        idle_group.addSettingCard(self._idle_card)
+
         self._content_layout.addStretch()
 
 
@@ -389,6 +440,20 @@ class _AIConfigPage(_PageBase):
         self._model_card.hBoxLayout.addSpacing(16)
         model_group.addSettingCard(self._model_card)
 
+        # ── 技能管理 ────────────────────────────────────────
+        self._skill_btn = QPushButton("管理技能...", self)
+        self._skill_btn.setStyleSheet("""
+            QPushButton {
+                background: #2d2d2d; color: #ccc;
+                border: 1px solid #555; border-radius: 6px;
+                padding: 8px 20px; font-size: 13px;
+            }
+            QPushButton:hover { background: #3d3d3d; color: #fff; }
+        """)
+        self._skill_btn.clicked.connect(self._open_skill_manager)
+        # 添加到 model_group 下方
+        self._content_layout.addWidget(self._skill_btn, 0, Qt.AlignLeft)
+
         # ── 系统提示词 ──────────────────────────────────────
         from src.ai.prompts import get_skill_prompt
         self._current_prompt = env.get("AI_SYSTEM_PROMPT", "")
@@ -501,6 +566,22 @@ class _AIConfigPage(_PageBase):
         self._prompt_preview.setText(self._shorten_prompt(prompt))
         self._mark_dirty()
         logger.info("已切换提示词")
+
+    def _open_skill_manager(self) -> None:
+        """打开技能预设管理对话框。"""
+        dialog = SkillManager(self._config, self)
+        dialog.skills_changed.connect(self._on_skills_changed)
+        dialog.exec()
+
+    def _on_skills_changed(self) -> None:
+        """技能变更后刷新提示词预览。"""
+        from src.ai.prompts import get_skill_prompt
+        current = get_skill_prompt(self._config)
+        if current != self._current_prompt:
+            self._current_prompt = current
+            self._prompt_preview.setText(self._shorten_prompt(current))
+            self._mark_dirty()
+            logger.info("技能已变更，提示词已同步")
 
     @staticmethod
     def _mask_key(key: str) -> str:
