@@ -1,5 +1,8 @@
 """
 Live2D 查看器窗口。
+
+支持动态模型列表：从 live2d.json 和 custom_live2d.json 加载所有已注册模型，
+右键菜单「切换模型」动态列出所有可用模型。
 """
 
 import logging
@@ -10,12 +13,10 @@ from PySide6.QtWidgets import QMainWindow, QMenu, QWidget
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from PySide6.QtWebEngineCore import QWebEnginePage, QWebEngineSettings
 
-from src.live2d.server import Live2DServer, AVAILABLE_MODELS as SERVER_MODELS
+from src.live2d.server import Live2DServer, BUILT_IN_MODELS
 
 logger = logging.getLogger(__name__)
 
-# 模型显示名 → 路由名 映射
-AVAILABLE_MODELS = {"流萤": "firefly", "椿": "chun"}
 DRAG_BAR_H = 28
 
 
@@ -149,36 +150,108 @@ class Live2DViewer(QMainWindow):
         self._menu.addAction(self._act_refresh)
         self._menu.addSeparator()
 
+        # ── 动态模型菜单 ─────────────────────────────────────
         self._model_menu = self._menu.addMenu("切换模型")
-        self._model_actions = {}
-        for name, key in AVAILABLE_MODELS.items():
-            act = QAction(name, self)
-            act.setCheckable(True)
-            act.setChecked(key == self._current_model)
-            act.triggered.connect(lambda checked, k=key: self.load_model(k))
-            self._model_menu.addAction(act)
-            self._model_actions[key] = act
+        self._model_actions: dict[str, QAction] = {}
+        self._refresh_model_menu()
 
         self._menu.addSeparator()
         self._act_exit = QAction("关闭", self)
         self._act_exit.triggered.connect(self.close)
         self._menu.addAction(self._act_exit)
 
+    def _refresh_model_menu(self) -> None:
+        """从注册表动态刷新模型列表菜单。"""
+        self._model_menu.clear()
+        self._model_actions.clear()
+
+        models = self._collect_models()
+
+        # 分组：系统模型 / 用户导入
+        bundled_items = [m for m in models if m["type"] == "bundled"]
+        user_items = [m for m in models if m["type"] == "user_imported"]
+
+        for items, group_name in [(bundled_items, "系统模型"), (user_items, "用户导入")]:
+            if items:
+                if self._model_menu.actions():
+                    self._model_menu.addSeparator()
+                # QMenu 不支持分组标签，用不可用的 QAction 模拟
+                label_act = QAction(f"— {group_name} —", self._model_menu)
+                label_act.setEnabled(False)
+                self._model_menu.addAction(label_act)
+
+            for m in items:
+                act = QAction(m["name"], self._model_menu)
+                act.setCheckable(True)
+                act.setChecked(m["id"] == self._current_model)
+                act.triggered.connect(lambda checked, mid=m["id"]: self.load_model(mid))
+                self._model_menu.addAction(act)
+                self._model_actions[m["id"]] = act
+
+    @staticmethod
+    def _collect_models() -> list[dict]:
+        """从配置文件收集所有可用 Live2D 模型。"""
+        from src.core.config import ConfigManager
+
+        config = ConfigManager()
+        models = []
+
+        # 内置模型
+        for mid, (_, model_dir) in BUILT_IN_MODELS.items():
+            names = {"firefly": "流萤", "chun": "椿"}
+            models.append({
+                "id": mid,
+                "name": names.get(mid, mid),
+                "type": "bundled",
+                "model_dir": model_dir,
+            })
+
+        # 用户导入模型
+        try:
+            custom_data = config.read("custom_live2d")
+            for entry in custom_data.get("models", []):
+                if entry.get("source_type") == "user_imported":
+                    models.append({
+                        "id": entry.get("id", ""),
+                        "name": entry.get("name", entry.get("id", "")),
+                        "type": "user_imported",
+                        "model_dir": entry.get("model_dir", entry.get("id", "")),
+                    })
+        except Exception as e:
+            logger.debug("读取自定义 Live2D 模型失败: %s", e)
+
+        return models
+
     def _show_context_menu(self) -> None:
+        # 每次展示前刷新模型列表（确保最新）
+        self._refresh_model_menu()
         self._menu.exec(QCursor.pos())
 
     # ── 模型 ────────────────────────────────────────────────
 
-    def load_model(self, model_name: str) -> None:
+    def load_model(self, model_id: str) -> None:
         if not self._server.is_running:
             logger.warning("Live2D 服务器未运行"); return
-        self._current_model = model_name
-        url = QUrl(f"http://127.0.0.1:{self._server.port}/{model_name}")
+
+        self._current_model = model_id
+
+        # 确定 URL：内置模型用短路由，用户导入用通用加载器
+        if model_id in BUILT_IN_MODELS:
+            url_path = f"/{model_id}"
+        else:
+            # 查找 model_dir
+            models = self._collect_models()
+            model_info = next((m for m in models if m["id"] == model_id), None)
+            model_dir = model_info["model_dir"] if model_info else model_id
+            url_path = f"/viewer?model={model_dir}"
+
+        url = QUrl(f"http://127.0.0.1:{self._server.port}{url_path}")
         self._view.setUrl(url)
-        self.setWindowTitle(f"Live2D - {model_name}")
+        self.setWindowTitle(f"Live2D - {model_id}")
+
         for key, act in self._model_actions.items():
-            act.setChecked(key == model_name)
-        logger.info("Live2D 模型: %s", model_name)
+            act.setChecked(key == model_id)
+        logger.info("Live2D 加载模型: %s", model_id)
 
     def _refresh(self) -> None:
         self._view.reload()

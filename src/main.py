@@ -42,6 +42,7 @@ from src.live2d.server import Live2DServer
 from src.character.walking import WalkingController
 from src.window.loading_window import LoadingWindow
 from src.window.popup_window import PopupWindow
+from src.model.registry import ModelRegistry
 
 logger = logging.getLogger(__name__)
 
@@ -223,12 +224,49 @@ class DesktopPetApplication:
         )
 
     def _on_main_window_shown(self) -> None:
-        """主窗口显示时播放启动语音。"""
+        """主窗口显示时播放启动语音，同步行走状态。"""
         self.voice.play_voice_pack("VoiceOnStart")
+        self._sync_walking_availability()
 
     def _on_main_window_closing(self) -> None:
         """主窗口隐藏时播放关闭语音。"""
         self.voice.play_voice_pack("VoiceOnClose")
+
+    def _on_model_switched(self, model_id: str) -> None:
+        """模型切换：更新动画管理器 + 行走状态 + 语音。"""
+        model_info = ModelRegistry.get_by_id(self.config, model_id)
+        if not model_info:
+            logger.warning("模型切换失败: '%s' 不在注册表中", model_id)
+            return
+
+        # 1. 更新动画管理器
+        self.animation.switch_model(model_info)
+
+        # 2. 持久化设置
+        self.config.set("main", "current_model", model_id)
+
+        # 3. 同步行走可用性
+        self._sync_walking_availability()
+
+        # 4. 播放启动语音（如果启用）
+        if self.config.get("main", "is_play_VoiceOnStart", False):
+            self.voice.play_voice_pack("VoiceOnStart")
+
+        logger.info("模型切换完成: %s (%s)", model_id, model_info.get("name", ""))
+
+    def _sync_walking_availability(self) -> None:
+        """根据当前模型是否支持行走，更新行走菜单状态。"""
+        model_id = self.config.get("main", "current_model", "firefly")
+        model_info = ModelRegistry.get_by_id(self.config, model_id)
+        has_walking = model_info and model_info.get("has_walking", False)
+
+        if hasattr(self.main_window, '_act_walk'):
+            self.main_window._act_walk.setEnabled(bool(has_walking))
+            if not has_walking:
+                self.main_window._act_walk.setToolTip("当前角色不支持自由行走")
+                if self.walking.is_walking:
+                    self.walking.stop()
+                    self.main_window._act_walk.setChecked(False)
 
     def _toggle_walking(self) -> None:
         """切换自由行走。"""
@@ -305,6 +343,9 @@ class DesktopPetApplication:
         if self.management_window is None:
             self.management_window = ManagementWindow(self.config, self.main_window)
             self.management_window.ai_config_changed.connect(self._on_ai_config_changed)
+            self.management_window.model_page.model_switched.connect(
+                self._on_model_switched
+            )
         if self.management_window.isVisible():
             self.management_window.raise_()
             self.management_window.activateWindow()

@@ -190,6 +190,14 @@ class MainWindow(QMainWindow):
         self._scaling = value
         self._update_image()
 
+    def set_walking_enabled(self, enabled: bool, tooltip: str = "") -> None:
+        """启用或禁用行走菜单项。"""
+        self._act_walk.setEnabled(enabled)
+        if tooltip:
+            self._act_walk.setToolTip(tooltip)
+        elif enabled:
+            self._act_walk.setToolTip("")
+
     # ── 鼠标事件（窗口拖拽 + 交互；文档 §4.2）──────────────
 
     def mousePressEvent(self, event: QMouseEvent) -> None:

@@ -489,6 +489,18 @@ class _AIConfigPage(_PageBase):
         """)
         self._manage_prompt_btn.clicked.connect(self._open_prompt_manager)
         self._prompt_card.hBoxLayout.addWidget(self._manage_prompt_btn, 0, Qt.AlignRight)
+
+        self._generate_prompt_btn = QPushButton("AI 生成提示词...", self)
+        self._generate_prompt_btn.setStyleSheet("""
+            QPushButton {
+                background: #1a4a6a; color: #5ba3e6;
+                border: 1px solid #3a6a8a; border-radius: 4px;
+                padding: 4px 12px; font-size: 12px;
+            }
+            QPushButton:hover { background: #2a5a7a; color: #7bc3ff; }
+        """)
+        self._generate_prompt_btn.clicked.connect(self._open_prompt_generator)
+        self._prompt_card.hBoxLayout.addWidget(self._generate_prompt_btn, 0, Qt.AlignRight)
         self._prompt_card.hBoxLayout.addSpacing(16)
         prompt_group.addSettingCard(self._prompt_card)
 
@@ -569,6 +581,29 @@ class _AIConfigPage(_PageBase):
         self._prompt_preview.setText(self._shorten_prompt(prompt))
         self._mark_dirty()
         logger.info("已切换提示词")
+
+    def _open_prompt_generator(self) -> None:
+        """打开 AI 提示词生成器。"""
+        if not self._check_ai_ready():
+            QMessageBox.warning(self, "提示",
+                "请先配置 AI 供应商和 API Key 后再使用提示词生成功能。")
+            return
+
+        # 创建临时 AIClient 用于生成
+        from src.ai.client import AIClient
+        client = AIClient()
+
+        from src.widgets.prompt_generator import PromptGenerator
+        dialog = PromptGenerator(client, self._current_prompt, self)
+        dialog.prompt_selected.connect(self._on_prompt_changed)
+        dialog.exec()
+
+    @staticmethod
+    def _check_ai_ready() -> bool:
+        """检查 AI 客户端是否已可用（有 key、有 base_url）。"""
+        from src.ai.client import _parse_env_file
+        env = _parse_env_file()
+        return bool(env.get("AI_API_KEY")) and bool(env.get("AI_API_BASE"))
 
     def _open_skill_manager(self) -> None:
         """打开技能预设管理对话框。"""
