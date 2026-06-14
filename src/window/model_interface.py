@@ -13,6 +13,7 @@ from PySide6.QtGui import QFont, QAction
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
     QFrame, QScrollArea, QMessageBox, QDialog, QSizePolicy,
+    QGroupBox,
 )
 
 from src.core.config import ConfigManager
@@ -49,6 +50,8 @@ class ModelInterface(QWidget):
     model_switched = Signal(str)
     # 导入完成信号，参数: model_id
     model_imported = Signal(str)
+    # 动作测试信号，参数: model_id, action_name
+    action_test_requested = Signal(str, str)
 
     def __init__(self, config: ConfigManager, parent=None):
         super().__init__(parent)
@@ -281,6 +284,9 @@ class ModelInterface(QWidget):
         elif context.endswith(":detail"):
             model_id = context[:-7]
             self._show_detail(model_id)
+        elif context.endswith(":actions"):
+            model_id = context[:-8]
+            self._show_action_test(model_id)
 
     def _on_live2d_context(self, context: str, pos) -> None:
         """处理 Live2D 卡片的右键菜单动作。"""
@@ -448,6 +454,26 @@ class ModelInterface(QWidget):
 
         QMessageBox.information(self, f"模型详情 - {model_info.get('name', '')}", detail_text)
 
+    # ── 动作测试 ────────────────────────────────────────────
+
+    def _show_action_test(self, model_id: str) -> None:
+        """打开动作测试对话框，显示模型的所有动作并提供执行按钮。"""
+        model_info = ModelRegistry.get_by_id(self._config, model_id)
+        if not model_info:
+            QMessageBox.warning(self, "提示", f"找不到模型: {model_id}")
+            return
+
+        actions = model_info.get("actions", [])
+        if not actions:
+            QMessageBox.information(self, "提示", "该模型没有可测试的动作。")
+            return
+
+        dialog = _ActionTestDialog(model_info, self)
+        dialog.action_triggered.connect(
+            lambda action: self.action_test_requested.emit(model_id, action)
+        )
+        dialog.exec()
+
     def _show_live2d_detail(self, model_id: str) -> None:
         """显示 Live2D 模型详情。"""
         models = self._load_live2d_models()
@@ -472,3 +498,73 @@ class ModelInterface(QWidget):
         """外部调用：刷新模型列表。"""
         self._build_content()
         logger.debug("模型页面已刷新")
+
+
+# ═══════════════════════════════════════════════════════════════
+# 动作测试对话框
+# ═══════════════════════════════════════════════════════════════
+
+class _ActionTestDialog(QDialog):
+    """显示模型的所有动作，提供执行按钮用于测试。"""
+
+    action_triggered = Signal(str)  # action_name
+
+    def __init__(self, model_info: dict, parent=None):
+        super().__init__(parent)
+        model_name = model_info.get("name", model_info.get("id", "未知"))
+        self.setWindowTitle(f"动作测试 - {model_name}")
+        self.setMinimumSize(320, 250)
+        self.setAttribute(Qt.WA_QuitOnClose, False)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 16, 20, 16)
+        layout.setSpacing(12)
+
+        # 标题
+        title = QLabel(f"「{model_name}」的动作列表", self)
+        tf = QFont()
+        tf.setPointSize(14)
+        tf.setBold(True)
+        title.setFont(tf)
+        title.setStyleSheet("color: #e0e0e0;")
+        layout.addWidget(title)
+
+        desc = QLabel("点击按钮执行对应动作，验证动作效果：", self)
+        desc.setStyleSheet("color: #888; font-size: 12px;")
+        layout.addWidget(desc)
+
+        # 动作按钮网格
+        actions = model_info.get("actions", [])
+        btn_layout = QVBoxLayout()
+        btn_layout.setSpacing(8)
+
+        btn_style = """
+            QPushButton {
+                background: #2d2d2d; color: #e0e0e0;
+                border: 1px solid #555; border-radius: 6px;
+                padding: 10px 16px; font-size: 14px;
+                text-align: left;
+            }
+            QPushButton:hover {
+                background: #3a6ea5; color: #fff;
+                border: 1px solid #5ba3e6;
+            }
+        """
+
+        for action in actions:
+            btn = QPushButton(f"▶ {action}", self)
+            btn.setStyleSheet(btn_style)
+            btn.clicked.connect(lambda checked, a=action: self._on_test_action(a))
+            btn_layout.addWidget(btn)
+
+        layout.addLayout(btn_layout)
+        layout.addStretch()
+
+        # 底部提示
+        note = QLabel("💡 执行动作后，切换回主窗口查看角色动画效果。", self)
+        note.setStyleSheet("color: #666; font-size: 11px;")
+        layout.addWidget(note)
+
+    def _on_test_action(self, action: str) -> None:
+        """触发动作测试。"""
+        self.action_triggered.emit(action)

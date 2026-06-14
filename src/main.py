@@ -263,8 +263,8 @@ class DesktopPetApplication:
         # 3. 同步行走可用性
         self._sync_walking_availability()
 
-        # 4. 如果聊天窗口已打开，更新角色名
-        if self.chat_window and self.chat_window.isVisible():
+        # 4. 更新聊天窗口角色名（无论是否可见）
+        if self.chat_window:
             name = model_info.get("name", model_id)
             self.chat_window.update_character_name(name)
 
@@ -273,6 +273,11 @@ class DesktopPetApplication:
             self.voice.play_voice_pack("VoiceOnStart")
 
         logger.info("模型切换完成: %s (%s)", model_id, model_info.get("name", ""))
+
+    def _on_action_test(self, model_id: str, action_name: str) -> None:
+        """动作测试：直接触发角色动画（不切换模型）。"""
+        self.animation.switch_action(action_name)
+        logger.info("动作测试: %s → %s", model_id, action_name)
 
     def _sync_walking_availability(self) -> None:
         """根据当前模型是否支持行走，更新行走菜单状态。"""
@@ -366,6 +371,9 @@ class DesktopPetApplication:
             self.management_window.ai_config_changed.connect(self._on_ai_config_changed)
             self.management_window.model_page.model_switched.connect(
                 self._on_model_switched
+            )
+            self.management_window.model_page.action_test_requested.connect(
+                self._on_action_test
             )
         if self.management_window.isVisible():
             self.management_window.raise_()

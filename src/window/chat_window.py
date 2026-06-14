@@ -149,6 +149,8 @@ class ChatWindow(QWidget):
         title_text = f"✦ 与 {name} 聊天 ✦"
         self.setWindowTitle(title_text)
         self._title_label.setText(title_text)
+
+    def send_message(self, text: str) -> None:
         """发送消息（外部调用或按钮触发）。"""
         text = text.strip()
         if not text or self._thinking:

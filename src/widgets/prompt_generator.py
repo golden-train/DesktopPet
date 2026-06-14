@@ -151,6 +151,14 @@ class PromptGenerator(QDialog):
         input_layout.setSpacing(8)
         input_panel.setStyleSheet(_INPUT_STYLE)
 
+        # 提示词名称（保存为预设时的标识）
+        preset_label = QLabel("提示词名称", input_panel)
+        preset_label.setStyleSheet(_LABEL_STYLE)
+        input_layout.addWidget(preset_label)
+        self._prompt_name_input = QLineEdit(input_panel)
+        self._prompt_name_input.setPlaceholderText("如：可爱猫娘、冷酷助手（留空则不保存）")
+        input_layout.addWidget(self._prompt_name_input)
+
         # 角色名称
         name_label = QLabel("角色名称", input_panel)
         name_label.setStyleSheet(_LABEL_STYLE)
@@ -357,13 +365,35 @@ class PromptGenerator(QDialog):
     # ── 使用 ────────────────────────────────────────────────
 
     def _on_use(self) -> None:
-        """用户确认使用当前提示词。"""
+        """用户确认使用当前提示词，可保存为预设。"""
         if self._is_editing:
             self._generated_prompt = self._preview.toPlainText().strip()
         text = self._generated_prompt or self._preview.toPlainText().strip()
-        if text:
-            self.prompt_selected.emit(text)
-            self.accept()
+        if not text:
+            return
+
+        # 如果有提示词名称，保存到 custom_prompts.json
+        prompt_name = self._prompt_name_input.text().strip()
+        if prompt_name:
+            try:
+                from src.core.config import ConfigManager
+                cfg = ConfigManager()
+                data = cfg.read("custom_prompts")
+                prompts = data.get("custom_prompts", [])
+                # 覆盖同名
+                for i, p in enumerate(prompts):
+                    if p["name"] == prompt_name:
+                        prompts[i] = {"name": prompt_name, "prompt": text}
+                        break
+                else:
+                    prompts.append({"name": prompt_name, "prompt": text})
+                cfg.write("custom_prompts", {"custom_prompts": prompts})
+                logger.info("已保存提示词预设: %s", prompt_name)
+            except Exception as e:
+                logger.warning("保存提示词预设失败: %s", e)
+
+        self.prompt_selected.emit(text)
+        self.accept()
 
     # ── 工具 ────────────────────────────────────────────────
 

@@ -33,10 +33,21 @@ _MARKER_INSTRUCTION = (
 
 
 def get_skill_prompt(config: ConfigManager, skill_name: Optional[str] = None) -> str:
-    """从 ``skills.json`` 加载指定技能的系统提示词。
+    """获取系统提示词。
 
-    若 ``skill_name`` 为 ``None``，返回第一个技能（默认）。
+    优先级：
+    1. ``.env`` 中的 ``AI_SYSTEM_PROMPT``（AI 配置页保存的）
+    2. ``skills.json`` 中指定名称的技能
+    3. ``skills.json`` 中第一个技能（默认）
     """
+    # 优先使用 .env 中保存的提示词（AI 配置页 → 保存配置）
+    from src.ai.client import _parse_env_file
+    env = _parse_env_file()
+    env_prompt = env.get("AI_SYSTEM_PROMPT", "").strip()
+    if env_prompt:
+        return env_prompt
+
+    # 回退到 skills.json
     skills_data = config.read("skills")
     skills = skills_data.get("skills", [])
     if not skills:

@@ -101,6 +101,17 @@ class VoiceService(QObject):
         :param key: power_plugged / power_not_plugged / LOW_BATTERY /
                      HEALTHY_POWER / FULL_POWER
         """
+        # 检查电池扩展是否启用
+        if not self._config.get("main", "enable_battery_monitor", False):
+            logger.debug("电池语音已禁用")
+            return
+
+        # 检查当前模型是否有语音（无语音的模型跳过电池语音）
+        model_id = self._config.get("main", "current_model", "firefly")
+        if not self._model_has_voice(model_id):
+            logger.debug("模型 '%s' 无语音包，跳过电池语音", model_id)
+            return
+
         data = self._config.read("battery_voice")
         candidates = data.get(key, [])
         if not candidates:

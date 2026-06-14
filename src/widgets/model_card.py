@@ -176,6 +176,10 @@ class ModelCard(QFrame):
 
         menu.addSeparator()
 
+        act_test = QAction("测试动作...", menu)
+        act_test.triggered.connect(self._on_test_actions)
+        menu.addAction(act_test)
+
         act_detail = QAction("查看详情", menu)
         act_detail.triggered.connect(self._on_show_detail)
         menu.addAction(act_detail)
@@ -198,6 +202,10 @@ class ModelCard(QFrame):
     def _on_remove(self) -> None:
         """从注册表移除。"""
         self.context_requested.emit(self._model_id + ":remove", self.mapToGlobal(self.rect().center()))
+
+    def _on_test_actions(self) -> None:
+        """打开动作测试面板。"""
+        self.context_requested.emit(self._model_id + ":actions", self.mapToGlobal(self.rect().center()))
 
     def _on_show_detail(self) -> None:
         """展示模型详情。"""

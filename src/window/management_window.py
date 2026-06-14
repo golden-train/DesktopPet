@@ -581,9 +581,12 @@ class _AIConfigPage(_PageBase):
         dialog.exec()
 
     def _on_prompt_changed(self, prompt: str) -> None:
-        """用户从 PromptManager 选择了提示词。"""
+        """用户选择了提示词（来自 PromptManager 或 PromptGenerator），立即保存。"""
         self._current_prompt = prompt
         self._prompt_preview.setText(self._shorten_prompt(prompt))
+        # 立即写入 .env，重启不丢失
+        from src.ai.client import set_env
+        set_env("AI_SYSTEM_PROMPT", prompt)
         self._mark_dirty()
         logger.info("已切换提示词")
 
