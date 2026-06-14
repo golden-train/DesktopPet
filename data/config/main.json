@@ -1,5 +1,5 @@
 {
-  "scaling": 0.75,
+  "scaling": 0.25,
   "currentBgImage": "data\\assets\\images\\firefly\\default\\bg.png",
   "is_play_VoiceOnStart": false,
   "is_play_VoiceOnClose": false,

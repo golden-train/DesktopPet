@@ -38,16 +38,20 @@ class ChatWindow(QWidget):
     # 窗口移动时发出
     window_moved = Signal()
 
-    def __init__(self, ai_client: AIClient, config, parent=None):
+    def __init__(self, ai_client: AIClient, config, parent=None,
+                 character_name: str = ""):
         super().__init__(parent)
         self._ai = ai_client
         self._config = config
         self._history: list[dict] = []
         self._thinking = False
 
-        # 角色名：从 skills.json 默认技能获取，兼容后续自定义
-        from src.ai.prompts import get_default_skill_name
-        self._character_name = get_default_skill_name(config)
+        # 角色名：优先使用传入的模型名，否则从 skills.json 获取
+        if character_name:
+            self._character_name = character_name
+        else:
+            from src.ai.prompts import get_default_skill_name
+            self._character_name = get_default_skill_name(config)
 
         self.setWindowTitle(f"✦ 与 {self._character_name} 聊天 ✦")
         self.setMinimumSize(400, 500)
@@ -60,13 +64,13 @@ class ChatWindow(QWidget):
         layout.setSpacing(8)
 
         # 标题
-        title = QLabel(f"✦ 与 {self._character_name} 聊天 ✦", self)
-        title.setAlignment(Qt.AlignCenter)
+        self._title_label = QLabel(f"✦ 与 {self._character_name} 聊天 ✦", self)
+        self._title_label.setAlignment(Qt.AlignCenter)
         title_font = QFont()
         title_font.setPointSize(14)
         title_font.setBold(True)
-        title.setFont(title_font)
-        layout.addWidget(title)
+        self._title_label.setFont(title_font)
+        layout.addWidget(self._title_label)
 
         # 聊天记录
         self._display = QTextEdit(self)
@@ -139,7 +143,12 @@ class ChatWindow(QWidget):
 
     # ── 发送消息 ────────────────────────────────────────────
 
-    def send_message(self, text: str) -> None:
+    def update_character_name(self, name: str) -> None:
+        """更新聊天窗口的角色名称（模型切换时调用）。"""
+        self._character_name = name
+        title_text = f"✦ 与 {name} 聊天 ✦"
+        self.setWindowTitle(title_text)
+        self._title_label.setText(title_text)
         """发送消息（外部调用或按钮触发）。"""
         text = text.strip()
         if not text or self._thinking:

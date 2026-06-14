@@ -239,8 +239,16 @@ class DesktopPetApplication:
         """主窗口隐藏时播放关闭语音。"""
         self.voice.play_voice_pack("VoiceOnClose")
 
+    def _get_current_model_name(self) -> str:
+        """获取当前模型的显示名称。"""
+        model_id = self.config.get("main", "current_model", "firefly")
+        info = ModelRegistry.get_by_id(self.config, model_id)
+        if info:
+            return info.get("name", model_id)
+        return "流萤"
+
     def _on_model_switched(self, model_id: str) -> None:
-        """模型切换：更新动画管理器 + 行走状态 + 语音。"""
+        """模型切换：更新动画管理器 + 行走状态 + 语音 + 聊天窗。"""
         model_info = ModelRegistry.get_by_id(self.config, model_id)
         if not model_info:
             logger.warning("模型切换失败: '%s' 不在注册表中", model_id)
@@ -255,7 +263,12 @@ class DesktopPetApplication:
         # 3. 同步行走可用性
         self._sync_walking_availability()
 
-        # 4. 播放启动语音（如果启用）
+        # 4. 如果聊天窗口已打开，更新角色名
+        if self.chat_window and self.chat_window.isVisible():
+            name = model_info.get("name", model_id)
+            self.chat_window.update_character_name(name)
+
+        # 5. 播放启动语音（如果启用且模型有语音）
         if self.config.get("main", "is_play_VoiceOnStart", False):
             self.voice.play_voice_pack("VoiceOnStart")
 
@@ -326,6 +339,7 @@ class DesktopPetApplication:
         except Exception as e:
             logger.warning("电池监控初始化失败（可能无电池）: %s", e)
             self._battery_monitor = None
+            self._battery_monitor = None
 
     def _quit_app(self) -> None:
         """真正退出程序。"""
@@ -372,8 +386,11 @@ class DesktopPetApplication:
         if self.chat_window is None:
             if self.ai_client is None:
                 self.ai_client = AIClient()
+            # 获取当前模型名称作为聊天角色名
+            model_name = self._get_current_model_name()
             from src.window.chat_window import ChatWindow
-            self.chat_window = ChatWindow(self.ai_client, self.config)
+            self.chat_window = ChatWindow(self.ai_client, self.config,
+                                          character_name=model_name)
             self.chat_window.reply_ready.connect(self._on_ai_reply)
             self.chat_window.window_closed.connect(
                 lambda: self.animation.switch_action("Standby")

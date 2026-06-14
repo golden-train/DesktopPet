@@ -179,7 +179,7 @@ class _ExtendPage(_PageBase):
             configItem=None, parent=battery_group,
         )
         self._battery_card.switchButton.setChecked(
-            config.get("main", "enable_battery_monitor", True)
+            config.get("main", "enable_battery_monitor", False)
         )
         self._battery_card.switchButton.checkedChanged.connect(
             lambda c: config.set("main", "enable_battery_monitor", c)

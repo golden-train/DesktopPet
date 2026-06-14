@@ -366,7 +366,7 @@ class ModelInterface(QWidget):
     # ── 删除 ────────────────────────────────────────────────
 
     def _remove_model(self, model_id: str) -> None:
-        """从注册表移除角色模型。"""
+        """从注册表移除角色模型。如果删除的是当前模型，自动切回 firefly。"""
         model_info = ModelRegistry.get_by_id(self._config, model_id)
         if not model_info:
             return
@@ -381,8 +381,17 @@ class ModelInterface(QWidget):
         if reply != QMessageBox.Yes:
             return
 
+        # 检查是否正在删除当前使用的模型
+        current = ModelRegistry.get_default(self._config)
+        was_current = (current == model_id)
+
         success = ModelImporter.remove_model(model_id, self._config)
         if success:
+            # 如果删除的是当前模型，切回 firefly
+            if was_current:
+                ModelRegistry.set_default(self._config, "firefly")
+                self.model_switched.emit("firefly")
+                logger.info("当前模型已删除，自动切换到 firefly")
             self._build_content()
             logger.info("已删除模型: %s", model_id)
         else:

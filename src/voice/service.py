@@ -64,12 +64,19 @@ class VoiceService(QObject):
 
     def play_voice_pack(self, key: str, time_of_day: str = "") -> None:
         """
-        从 ``voicepack.json`` 中按时段取列表，随机选一条播放。
+        从当前模型的语音包中按时段取列表，随机选一条播放。
+        如果当前模型没有语音资源，静默跳过。
 
         :param key: VoiceOnStart / VoiceOnClose
         :param time_of_day: morn / noon / night / other（为空时自动检测）
         """
         if not self._is_enabled(key):
+            return
+
+        # 检查当前模型是否有语音资源
+        model_id = self._config.get("main", "current_model", "firefly")
+        if not self._model_has_voice(model_id):
+            logger.debug("模型 '%s' 无语音包，跳过", model_id)
             return
 
         data = self._config.read("voicepack")
@@ -150,6 +157,14 @@ class VoiceService(QObject):
         return "other"
 
     # ── 内部辅助 ────────────────────────────────────────────
+
+    def _model_has_voice(self, model_id: str) -> bool:
+        """检查指定模型是否有语音资源。"""
+        from src.model.registry import ModelRegistry
+        info = ModelRegistry.get_by_id(self._config, model_id)
+        if not info:
+            return False
+        return bool(info.get("voice_available", False))
 
     def _resolve_path(self, wav_path: str) -> Path | None:
         """解析 WAV 路径（支持相对路径和绝对路径）。"""
