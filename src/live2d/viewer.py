@@ -198,7 +198,7 @@ class Live2DViewer(QMainWindow):
 
         # 内置模型
         for mid, (_, model_dir) in BUILT_IN_MODELS.items():
-            names = {"firefly": "流萤", "chun": "椿"}
+            names = {"firefly": "流萤"}
             models.append({
                 "id": mid,
                 "name": names.get(mid, mid),

@@ -2,10 +2,10 @@
   "scaling": 0.5,
   "currentBgImage": "data\\assets\\images\\firefly\\default\\bg.png",
   "is_play_VoiceOnStart": true,
-  "is_play_VoiceOnClose": false,
+  "is_play_VoiceOnClose": true,
   "theme": "dark",
   "license_accepted": true,
   "current_model": "firefly",
-  "enable_battery_monitor": true,
+  "enable_battery_monitor": false,
   "is_play_idle_voice": true
 }

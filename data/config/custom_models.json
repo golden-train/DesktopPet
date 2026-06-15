@@ -19,20 +19,6 @@
         "right"
       ],
       "description": "桌面宠物系统默认角色"
-    },
-    {
-      "id": "magicstack",
-      "name": "magicstack",
-      "source_type": "user_imported",
-      "dir": "data\\assets\\images\\custom\\magicstack",
-      "has_walking": false,
-      "voice_available": false,
-      "has_icon": true,
-      "actions": [
-        "love",
-        "Standby"
-      ],
-      "registered_at": "2026-06-14T21:55:56"
     }
   ]
 }

@@ -23,7 +23,6 @@ _STATIC_DIR = _LIVE2D_DIR / "static"
 # 内置模型定义：URL路径 → (页面文件名, 模型目录名)
 BUILT_IN_MODELS = {
     "firefly": ("firefly.html", "Firefly"),
-    "chun": ("chun.html", "chun"),
 }
 
 
@@ -142,7 +141,7 @@ class _Live2DHandler(SimpleHTTPRequestHandler):
 
     @staticmethod
     def _get_builtin_name(model_id: str) -> str:
-        names = {"firefly": "流萤", "chun": "椿"}
+        names = {"firefly": "流萤"}
         return names.get(model_id, model_id)
 
     def log_message(self, fmt, *args):
