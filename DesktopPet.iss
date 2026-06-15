@@ -7,7 +7,7 @@
 ;   或直接运行 BUILD_INSTALLER.bat 一键完成
 
 #define MyAppName "DesktopPet"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "goldentrain"
 #define MyAppURL "https://github.com/golden-train/DesktopPet"
 #define MyAppExeName "DesktopPet.exe"

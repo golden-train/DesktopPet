@@ -323,7 +323,77 @@ class _SettingsPage(_PageBase):
         self._interval_card.hBoxLayout.addSpacing(16)
         idle_group.addSettingCard(self._interval_card)
 
+        # ── 启动设置 ────────────────────────────────────────
+        startup_group = SettingCardGroup("启动", self)
+        self._content_layout.addWidget(startup_group)
+
+        is_autostart = self._is_autostart_enabled()
+        self._autostart_card = SwitchSettingCard(
+            FluentIcon.POWER_BUTTON, "开机自启",
+            "开机后自动启动桌面宠物", configItem=None, parent=startup_group,
+        )
+        self._autostart_card.switchButton.setChecked(is_autostart)
+        self._autostart_card.switchButton.checkedChanged.connect(
+            self._on_autostart_toggled
+        )
+        startup_group.addSettingCard(self._autostart_card)
+
         self._content_layout.addStretch()
+
+    def _on_autostart_toggled(self, enabled: bool) -> None:
+        """切换开机自启。"""
+        import sys
+        import os
+
+        app_path = ""
+        if getattr(sys, "frozen", False):
+            app_path = sys.executable
+        else:
+            # 开发模式：启动脚本路径
+            app_path = os.path.abspath(os.path.join(
+                os.path.dirname(__file__), "..", "..", "src", "main.py"
+            ))
+
+        key_name = "DesktopPet"
+        try:
+            import winreg
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0, winreg.KEY_SET_VALUE
+            )
+            if enabled:
+                winreg.SetValueEx(key, key_name, 0, winreg.REG_SZ, f'"{app_path}"')
+                logger.info("开机自启已开启: %s", app_path)
+            else:
+                try:
+                    winreg.DeleteValue(key, key_name)
+                    logger.info("开机自启已关闭")
+                except FileNotFoundError:
+                    pass
+            winreg.CloseKey(key)
+        except Exception as e:
+            logger.warning("设置开机自启失败: %s", e)
+
+    @staticmethod
+    def _is_autostart_enabled() -> bool:
+        """检查当前是否已设置开机自启。"""
+        try:
+            import winreg
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                r"Software\Microsoft\Windows\CurrentVersion\Run",
+                0, winreg.KEY_READ
+            )
+            try:
+                winreg.QueryValueEx(key, "DesktopPet")
+                return True
+            except FileNotFoundError:
+                return False
+            finally:
+                winreg.CloseKey(key)
+        except Exception:
+            return False
 
     def _on_combo_changed(self, idx: int) -> None:
         _, value = _SCALE_OPTIONS[idx]
