@@ -1,91 +1,60 @@
 """
 电池语音扩展。
 
-独立线程每 3 秒检测一次电池状态（通过 psutil），
-检测到电源插拔或电量阶段变化时通过信号通知主线程播放语音。
+检测电源插拔和电量变化，自动播放对应语音。
+作为 ExtensionBase 子类，由 ExtensionRegistry 自动发现和管理。
 """
 
 import logging
+from typing import Optional
 
-from PySide6.QtCore import QThread, Signal
+from PySide6.QtWidgets import QWidget
+
+from src.core.config import ConfigManager
+from src.extends.base import ExtensionBase
+from src.extends.battery_voice.monitor import BatteryMonitor
 
 logger = logging.getLogger(__name__)
 
-# 电量阶段阈值
-_LOW_THRESHOLD = 50      # < 50% → LOW_BATTERY
-_HEALTHY_MIN = 50        # 50-99% → HEALTHY_POWER
-_FULL_THRESHOLD = 100    # 100% → FULL_POWER
 
+class BatteryVoiceExtension(ExtensionBase):
+    """电池语音扩展——检测电源/电量变化，播放语音提醒。"""
 
-class BatteryMonitor(QThread):
-    """
-    独立线程，每 3 秒检测一次电池状态。
-    检测到状态变化时通过信号通知主线程播放对应语音。
-    """
-    voice_triggered = Signal(str)  # 参数: key
+    name = "电池语音"
+    description = "检测电源插拔和电量变化，自动播放对应语音"
+    icon = "🔋"
 
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self._stop_flag: bool = False
-        self._was_plugged: bool | None = None
-        self._low_triggered: bool = False
-        self._healthy_triggered: bool = False
-        self._full_triggered: bool = False
+    def __init__(self, config: ConfigManager, parent=None):
+        super().__init__(config, parent)
+        self._monitor: BatteryMonitor | None = None
 
-    def stop(self):
-        """请求线程停止。"""
-        self._stop_flag = True
-
-    def run(self):
-        """每 3 秒检测电池状态。"""
-        logger.info("电池监控线程启动")
-        while not self._stop_flag:
-            try:
-                self._check_once()
-            except Exception as e:
-                logger.debug("电池检测异常（可能无电池）: %s", e)
-            self.msleep(3000)
-        logger.info("电池监控线程停止")
-
-    def _check_once(self) -> None:
-        """单次电池状态检测。"""
-        import psutil
-        battery = psutil.sensors_battery()
-        if battery is None:
-            return  # 无电池设备（如台式机）
-
-        plugged = battery.power_plugged
-        percent = battery.percent
-
-        # ── 电源插拔检测 ────────────────────────────────────
-        if self._was_plugged is not None and plugged != self._was_plugged:
-            if plugged:
-                logger.info("电源插入")
-                self.voice_triggered.emit("power_plugged")
-                # 重置阶段触发标记
-                self._low_triggered = False
-                self._healthy_triggered = False
-                self._full_triggered = False
-            else:
-                logger.info("电源拔出")
-                self.voice_triggered.emit("power_not_plugged")
-
-        self._was_plugged = plugged
-
-        # ── 电量阶段检测（仅插入电源时）─────────────────────
-        if not plugged:
+    def on_enable(self) -> None:
+        """开启电池监控线程。"""
+        if self._monitor is not None:
             return
 
-        if percent >= _FULL_THRESHOLD and not self._full_triggered:
-            logger.info("电量充满: %d%%", percent)
-            self.voice_triggered.emit("FULL_POWER")
-            self._full_triggered = True
-        elif _HEALTHY_MIN <= percent < _FULL_THRESHOLD and not self._healthy_triggered:
-            logger.info("电量健康: %d%%", percent)
-            # 单次触发后标记
-            self.voice_triggered.emit("HEALTHY_POWER")
-            self._healthy_triggered = True
-        elif percent < _LOW_THRESHOLD and not self._low_triggered:
-            logger.info("低电量: %d%%", percent)
-            self.voice_triggered.emit("LOW_BATTERY")
-            self._low_triggered = True
+        self._monitor = BatteryMonitor(self)
+        # 连接信号到语音服务（由 main.py 中的 ExtensionRegistry 完成信号连接）
+        logger.info("电池语音扩展已启用")
+
+    def on_disable(self) -> None:
+        """停止电池监控线程。"""
+        if self._monitor:
+            self._monitor.stop()
+            self._monitor.wait(2000)
+            self._monitor = None
+            logger.info("电池语音扩展已禁用")
+
+    def start_monitor(self, voice_callback) -> None:
+        """
+        启动监控（由主控制器调用）。
+        将 voice_triggered 信号连接到 VoiceService。
+        """
+        if self._monitor and not self._monitor.isRunning():
+            self._monitor.voice_triggered.connect(voice_callback)
+            self._monitor.start()
+            logger.info("电池监控线程已启动")
+
+    @property
+    def monitor(self) -> BatteryMonitor | None:
+        return self._monitor

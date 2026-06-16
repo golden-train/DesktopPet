@@ -7,5 +7,6 @@
   "license_accepted": true,
   "current_model": "firefly",
   "enable_battery_monitor": false,
-  "is_play_idle_voice": true
+  "is_play_idle_voice": true,
+  "enable_BatteryVoiceExtension": false
 }

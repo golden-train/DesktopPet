@@ -160,34 +160,45 @@ class _HomePage(_PageBase):
 
 
 # ═══════════════════════════════════════════════════════════════
-# 扩展管理页面
+# 扩展管理页面（动态）
 # ═══════════════════════════════════════════════════════════════
 
 class _ExtendPage(_PageBase):
-    """扩展管理页面——开关电池监控等功能。"""
+    """扩展管理页面——自动列出所有已发现的扩展。"""
 
     def __init__(self, config: ConfigManager, parent=None):
         super().__init__("扩展", "管理桌面宠物的扩展功能", parent)
         self._config = config
+        self._extension_cards: list = []
 
-        # ── 电池监控 ────────────────────────────────────────
-        battery_group = SettingCardGroup("电池语音", self)
-        self._content_layout.addWidget(battery_group)
+        # 从注册表发现所有扩展
+        from src.extends import ExtensionRegistry
+        extensions = ExtensionRegistry.discover(config)
 
-        self._battery_card = SwitchSettingCard(
-            FluentIcon.POWER_BUTTON, "电池状态监控",
-            "检测电源插拔和电量变化，自动播放对应语音",
-            configItem=None, parent=battery_group,
-        )
-        self._battery_card.switchButton.setChecked(
-            config.get("main", "enable_battery_monitor", False)
-        )
-        self._battery_card.switchButton.checkedChanged.connect(
-            lambda c: config.set("main", "enable_battery_monitor", c)
-        )
-        battery_group.addSettingCard(self._battery_card)
+        if not extensions:
+            self._content_layout.addWidget(
+                QLabel("暂无扩展", self, styleSheet="color: #666; font-size: 12px;")
+            )
+            self._content_layout.addStretch()
+            return
 
-        # ── 闲时语音 ────────────────────────────────────────
+        for ext in extensions:
+            group = SettingCardGroup(ext.icon + " " + ext.name, self)
+            self._content_layout.addWidget(group)
+
+            card = SwitchSettingCard(
+                FluentIcon.POWER_BUTTON, ext.name, ext.description,
+                configItem=None, parent=group,
+            )
+            card.switchButton.setChecked(ext.is_enabled())
+            card.switchButton.checkedChanged.connect(
+                lambda enabled, e=ext: self._on_extension_toggle(e, enabled)
+            )
+            group.addSettingCard(card)
+            self._extension_cards.append(card)
+
+        # ── 闲时语音（系统功能，非扩展） ────────────────────
+        self._content_layout.addSpacing(16)
         idle_group = SettingCardGroup("闲时语音", self)
         self._content_layout.addWidget(idle_group)
 
@@ -205,6 +216,15 @@ class _ExtendPage(_PageBase):
         idle_group.addSettingCard(self._idle_card)
 
         self._content_layout.addStretch()
+
+    def _on_extension_toggle(self, ext, enabled: bool) -> None:
+        """开关扩展时调用。"""
+        ext.set_enabled(enabled)
+        if enabled:
+            ext.on_enable()
+        else:
+            ext.on_disable()
+        logger.info("扩展 %s: %s", ext.name, "启用" if enabled else "禁用")
 
 
 # ═══════════════════════════════════════════════════════════════

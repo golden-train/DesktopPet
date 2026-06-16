@@ -43,7 +43,7 @@ from src.window.chat_window import ChatWindow
 from src.ai.client import AIClient
 from src.ai.prompts import ANIMATION_MARKERS
 from src.voice.service import VoiceService
-from src.extends.battery_voice.main import BatteryMonitor
+from src.extends import ExtensionRegistry
 from qfluentwidgets import setTheme, Theme
 from src.live2d.server import Live2DServer
 from src.character.walking import WalkingController
@@ -133,8 +133,8 @@ class DesktopPetApplication:
         # 11. 连接信号
         self._connect_signals()
 
-        # 12. 电池监控
-        self._init_battery_monitor()
+        # 12. 扩展系统
+        self._init_extensions()
 
         # 13. 闲时随机语音定时器
         self._idle_timer = QTimer(self.main_window)
@@ -332,27 +332,24 @@ class DesktopPetApplication:
         char_y = chat_pos.y() + 40
         self.main_window.follow_to(char_x, char_y)
 
-    def _init_battery_monitor(self) -> None:
-        """初始化电池监控。"""
-        try:
-            self._battery_monitor = BatteryMonitor()
-            self._battery_monitor.voice_triggered.connect(
-                self.voice.play_battery_voice
-            )
-            self._battery_monitor.start()
-            logger.info("电池监控已启动")
-        except Exception as e:
-            logger.warning("电池监控初始化失败（可能无电池）: %s", e)
-            self._battery_monitor = None
+    def _init_extensions(self) -> None:
+        """启动所有已启用的扩展。"""
+        started = ExtensionRegistry.start_enabled(self.config)
+        # 特殊处理：电池语音扩展需要额外连接信号
+        for ext in started:
+            if ext.name == "电池语音":
+                try:
+                    ext.start_monitor(self.voice.play_battery_voice)
+                    logger.info("电池语音扩展已启动")
+                except Exception as e:
+                    logger.warning("电池语音扩展初始化失败: %s", e)
             self._battery_monitor = None
 
     def _quit_app(self) -> None:
         """真正退出程序。"""
         logger.info("用户请求退出")
-        # 停止电池监控
-        if self._battery_monitor:
-            self._battery_monitor.stop()
-            self._battery_monitor.wait(2000)
+        # 停止所有扩展
+        ExtensionRegistry.stop_all()
         # 停止 Live2D 服务器
         self.live2d_server.stop()
         # 清理子窗口
