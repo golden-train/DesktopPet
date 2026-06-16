@@ -144,6 +144,10 @@ class MainWindow(QMainWindow):
 
         self._menu.addSeparator()
 
+        self._act_reset_pos = QAction("复位位置", self)
+        self._act_reset_pos.triggered.connect(self._reset_position)
+        self._menu.addAction(self._act_reset_pos)
+
         self._act_settings = QAction("设置...", self)
         self._act_settings.triggered.connect(self.settings_requested.emit)
         self._menu.addAction(self._act_settings)
@@ -217,7 +221,15 @@ class MainWindow(QMainWindow):
     def mouseMoveEvent(self, event: QMouseEvent) -> None:
         if self._drag_position is not None:
             delta = event.globalPosition().toPoint() - self._drag_position
-            self.move(self.pos() + delta)
+            new_pos = self.pos() + delta
+            # 确保窗口不飞出屏幕
+            screen = self.screen().availableGeometry() if self.screen() else None
+            if screen:
+                new_pos.setX(max(screen.left() - self.width() + 60,
+                                 min(new_pos.x(), screen.right() - 60)))
+                new_pos.setY(max(screen.top() - self.height() + 60,
+                                 min(new_pos.y(), screen.bottom() - 60)))
+            self.move(new_pos)
             self._drag_position = event.globalPosition().toPoint()
             self.user_dragged.emit()
         super().mouseMoveEvent(event)
@@ -230,6 +242,17 @@ class MainWindow(QMainWindow):
     def contextMenuEvent(self, event: QContextMenuEvent) -> None:
         """右键弹出菜单。"""
         self._menu.exec(event.globalPos())
+
+    # ── 窗口复位 ────────────────────────────────────────────
+
+    def _reset_position(self) -> None:
+        """将窗口复位到屏幕右下可见区域。"""
+        screen = self.screen().availableGeometry() if self.screen() else None
+        if screen:
+            x = max(0, screen.right() - self.width() - 40)
+            y = max(60, screen.bottom() - self.height() - 60)
+            self.animate_to(x, y, duration=400)
+            logger.info("窗口复位: (%d, %d)", x, y)
 
     # ── 窗口移动动画 ────────────────────────────────────────
 

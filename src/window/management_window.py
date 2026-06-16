@@ -91,17 +91,18 @@ class ManagementWindow(MSFluentWindow):
         """AI 配置保存后重载主控制器的 AIClient。"""
         self.ai_config_changed.emit()
 
-    def center_on_screen(self) -> None:
+    def place_bottom(self) -> None:
+        """将窗口底部对齐屏幕底部放置。"""
         screen = self.screen().availableGeometry() if self.screen() else None
         if screen:
             self.move(
-                screen.center().x() - self.width() // 2,
-                screen.center().y() - self.height() // 2,
+                max(0, screen.right() - self.width() - 40),
+                max(0, screen.bottom() - self.height()),
             )
 
     def showEvent(self, event):
         super().showEvent(event)
-        self.center_on_screen()
+        self.place_bottom()
 
 
 # ═══════════════════════════════════════════════════════════════

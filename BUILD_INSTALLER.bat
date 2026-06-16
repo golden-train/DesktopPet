@@ -11,31 +11,30 @@ REM --- Step 1: PyInstaller ---
 echo [1/3] Building with PyInstaller...
 echo.
 
-if not exist "dist\DesktopPet\DesktopPet.exe" (
-    pyinstaller --noconfirm ^
-        --onedir ^
-        --windowed ^
-        --name "DesktopPet" ^
-        --icon "data\assets\images\firefly\icon\icon.ico" ^
-        --add-data "data;data" ^
-        --hidden-import PySide6.QtMultimedia ^
-        --hidden-import PySide6.QtNetwork ^
-        --hidden-import qfluentwidgets ^
-        --hidden-import openai ^
-        --hidden-import psutil ^
-        --collect-all qfluentwidgets ^
-        src\main.py
+echo Cleaning old build...
+if exist "dist\DesktopPet" rmdir /s /q "dist\DesktopPet"
 
-    if %errorlevel% neq 0 (
-        echo [ERROR] PyInstaller build failed!
-        pause
-        exit /b 1
-    )
+pyinstaller --noconfirm ^
+    --onedir ^
+    --windowed ^
+    --name "DesktopPet" ^
+    --icon "data\assets\images\firefly\icon\icon.ico" ^
+    --add-data "data;data" ^
+    --hidden-import PySide6.QtMultimedia ^
+    --hidden-import PySide6.QtNetwork ^
+    --hidden-import qfluentwidgets ^
+    --hidden-import openai ^
+    --hidden-import psutil ^
+    --collect-all qfluentwidgets ^
+    src\main.py
 
-    copy ".env.example" "dist\DesktopPet\.env.example" >nul
-) else (
-    echo [SKIP] Build exists, using dist\DesktopPet\
+if %errorlevel% neq 0 (
+    echo [ERROR] PyInstaller build failed!
+    pause
+    exit /b 1
 )
+
+copy ".env.example" "dist\DesktopPet\.env.example" >nul
 
 echo [1/3] Done.
 echo.

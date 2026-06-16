@@ -391,6 +391,11 @@ class DesktopPetApplication:
 
     def _open_chat(self) -> None:
         """打开聊天窗口，角色自动走到对话框旁边。"""
+        # 打开聊天时断开自由行走
+        if self.walking.is_walking:
+            self.walking.stop()
+            if hasattr(self.main_window, '_act_walk'):
+                self.main_window._act_walk.setChecked(False)
         if self.chat_window is None:
             if self.ai_client is None:
                 self.ai_client = AIClient()
@@ -473,13 +478,14 @@ class DesktopPetApplication:
         return None
 
     def _place_window(self) -> None:
-        """将窗口放在屏幕右下区域（800px 偏移）。"""
+        """将窗口底部对齐屏幕底部放置。"""
         screen = self.app.primaryScreen()
-        if screen:
-            geom = screen.availableGeometry()
-            x = geom.right() - 400
-            y = geom.bottom() - 400
-            self.main_window.move(x, y)
+        if not screen:
+            return
+        geom = screen.availableGeometry()
+        x = geom.right() - self.main_window.width() - 40
+        y = geom.bottom() - self.main_window.height()
+        self.main_window.move(max(0, x), max(0, y))
 
     def run(self) -> int:
         """启动应用事件循环。"""
