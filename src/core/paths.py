@@ -45,13 +45,12 @@ BUNDLE_CONFIG_DIR = BUNDLE_DIR / "data" / "config"
 # 用户数据目录（其他可写数据）
 USER_DATA_DIR = USER_DIR / "data"
 
-# 捆绑资产目录（只读，图片、音频、Live2D 模型等）
+# 捆绑资产目录（只读，图片、音频等）
 DATA_DIR = BUNDLE_DIR / "data"
 CONFIG_DIR_SRC = BUNDLE_DIR / "data" / "config"  # 仅作为默认源
 AUDIO_DIR = BUNDLE_DIR / "data" / "audio"
 ASSETS_DIR = BUNDLE_DIR / "data" / "assets"
 IMAGES_DIR = ASSETS_DIR / "images"
-LIVE2D_DIR = BUNDLE_DIR / "data" / "live2d"
 
 # ── 角色资源目录 ────────────────────────────────────────────
 FIREFLY_DIR = IMAGES_DIR / "firefly"

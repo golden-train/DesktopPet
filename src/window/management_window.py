@@ -144,7 +144,7 @@ class _HomePage(_PageBase):
     def __init__(self, parent=None):
         super().__init__("主页", "欢迎使用桌面宠物", parent)
         info = QLabel(
-            "桌面宠物 —— 一个常驻桌面的互动角色，支援 AI 对话、Live2D 模型，和自由导入模型。\n\n"
+            "桌面宠物 —— 一个常驻桌面的互动角色，支持 AI 对话和自由导入模型。\n\n"
             "功能导航：\n"
             "  • 设置 → 角色显示与音频\n"
             "  • AI 配置 → API Key / 模型 / 供应商\n"
@@ -817,7 +817,6 @@ class _HelpPage(_PageBase):
     _TOPICS = [
         ("📖 总体使用说明", "基本操作 / 右键菜单 / AI 对话 / 语音系统"),
         ("🧑 像素小人导入", "Standby 必需 / 动作目录 / 语音包 / model.json"),
-        ("🎭 Live2D 导入", ".model3.json / 贴图 / 动作 / 表情 / 语音"),
         ("🔧 常见问题", "导入失败 / 行走灰色 / 不显示 / 语音不播"),
     ]
 
@@ -868,7 +867,6 @@ class _HelpPage(_PageBase):
         pages = [
             self._page_usage,
             self._page_pixel_import,
-            self._page_live2d_import,
             self._page_faq,
         ]
         for i, build_fn in enumerate(pages):
@@ -944,7 +942,6 @@ class _HelpPage(_PageBase):
         cl.addWidget(self._sub_title("右键菜单"))
         cl.addWidget(self._text(
             "• 打开聊天 → 与 AI 角色对话（需先配置 API Key）<br>"
-            "• Live2D 查看器 → 切换到 Live2D 模型显示<br>"
             "• 自由行走 → 角色在屏幕边缘自动来回行走<br>"
             "• 设置... → 打开详细设置窗口<br>"
             "• 退出 → 关闭程序"
@@ -1000,27 +997,6 @@ class _HelpPage(_PageBase):
             "将以上内容保存为 ``model.json`` 放在模型根目录，导入时系统自动读取角色信息。"
         ))
 
-    # ── 第3页：Live2D 导入 ───────────────────────────────
-
-    def _page_live2d_import(self, cl, parent):
-        cl.addWidget(self._text(
-            "在 设置 → 模型 → 导入新模型，选择包含以下结构的文件夹："
-        ))
-        cl.addWidget(self._code(
-            "你的 Live2D/\n"
-            "├── 名称.model3.json   ← 必需（模型配置）\n"
-            "├── 名称.moc3          ← 必需（模型数据）\n"
-            "├── 名称.4096/         ← 必需（贴图目录）\n"
-            "│   └── texture_00.png\n"
-            "├── animations/        ← 可选（动作）\n"
-            "├── expressions/       ← 可选（表情）\n"
-            "└── voice/             ← 可选（语音）"
-        ))
-        cl.addWidget(self._text(
-            "导入后右键角色 → Live2D 查看器 → 右键 → 切换模型 中选择。<br>"
-            "系统已内置「流萤」Live2D 模型可直接使用。"
-        ))
-
     # ── 第4页：常见问题 ───────────────────────────────────
 
     def _page_faq(self, cl, parent):
@@ -1031,8 +1007,6 @@ class _HelpPage(_PageBase):
             "角色缺少 left 和 right 动作目录，只有两者都有才支持行走。<br><br>"
             "<b>导入后不显示？</b><br>"
             "检查图片格式（PNG/JPG/WebP），尝试在设置中调整缩放倍数。<br><br>"
-            "<b>Live2D 不显示？</b><br>"
-            "确保 .model3.json 中引用的贴图路径正确且文件存在。<br><br>"
             "<b>自定义语音不播放？</b><br>"
             "使用 .wav 格式（兼容性最好），确保文件放在对应目录下。"
         ))

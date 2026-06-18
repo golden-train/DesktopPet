@@ -36,7 +36,6 @@ class MainWindow(QMainWindow):
     # 菜单信号
     settings_requested = Signal()
     chat_requested = Signal()
-    live2d_requested = Signal()
     walking_toggled = Signal()
     console_toggled = Signal()
     quit_requested = Signal()
@@ -126,10 +125,6 @@ class MainWindow(QMainWindow):
         self._act_chat = QAction("打开聊天", self)
         self._act_chat.triggered.connect(self.chat_requested.emit)
         self._menu.addAction(self._act_chat)
-
-        self._act_live2d = QAction("Live2D 查看器", self)
-        self._act_live2d.triggered.connect(self.live2d_requested.emit)
-        self._menu.addAction(self._act_live2d)
 
         self._act_walk = QAction("自由行走", self)
         self._act_walk.setCheckable(True)

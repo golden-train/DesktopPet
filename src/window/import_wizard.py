@@ -1,7 +1,7 @@
 """
 导入引导向导对话框。
 
-分 6 步引导用户完成角色模型或 Live2D 模型的导入。
+分 6 步引导用户完成角色模型的导入。
 """
 
 import logging
@@ -97,7 +97,7 @@ class ImportWizard(QDialog):
         self._max_steps: int = 6
 
         # 状态数据
-        self._import_type: Optional[str] = None  # "pixel" | "live2d"
+        self._import_type: Optional[str] = None
         self._source_dir: str = ""
         self._validation_report: dict = {}
         self._target_id: str = ""
@@ -194,13 +194,13 @@ class ImportWizard(QDialog):
     # ── Step 1: 选择类型 ────────────────────────────────────
 
     def _render_step1_select_type(self) -> None:
-        """选择导入类型：像素小人 / Live2D 模型。"""
+        """选择导入类型。"""
         title = QLabel("请选择你要导入的模型类型：", self._content_widget)
         title.setStyleSheet(_TITLE_STYLE)
         self._content_layout.addWidget(title)
 
         desc = QLabel(
-            "不同类型的模型有不同的目录结构和资源要求。",
+            "请选择包含 PNG 序列帧和 actions/ 目录的模型文件夹。",
             self._content_widget
         )
         desc.setStyleSheet(_DESC_STYLE)
@@ -236,44 +236,7 @@ class ImportWizard(QDialog):
         pixel_card.mousePressEvent = lambda e, t="pixel": self._select_type(t)
         self._content_layout.addWidget(pixel_card)
 
-        self._content_layout.addSpacing(8)
-
-        # Live2D 卡片
-        live2d_card = QFrame(self._content_widget)
-        live2d_card.setCursor(Qt.PointingHandCursor)
-        live2d_card.setProperty("type", "live2d")
-        live2d_card.setStyleSheet(_CARD_STYLE.format(
-            bg=_CARD_SELECTED if self._import_type == "live2d" else _CARD_NORMAL,
-            border=_BORDER_SELECTED if self._import_type == "live2d" else _BORDER_NORMAL,
-        ))
-        l2d_layout = QVBoxLayout(live2d_card)
-
-        l2d_title = QLabel("🎭 Live2D 模型", live2d_card)
-        l2d_title.setStyleSheet("font-size: 16px; font-weight: bold; color: #e0e0e0;")
-        l2d_layout.addWidget(l2d_title)
-
-        l2d_requirements = QLabel(
-            "需要准备:\n"
-            "  • .model3.json 配置文件\n"
-            "  • 贴图文件（.png/.jpg）\n"
-            "  • 动作 .motion3.json（可选）\n"
-            "  • 语音文件（可选）",
-            live2d_card,
-        )
-        l2d_requirements.setStyleSheet("color: #aaa; font-size: 12px; line-height: 1.6;")
-        l2d_layout.addWidget(l2d_requirements)
-
-        live2d_card.mousePressEvent = lambda e, t="live2d": self._select_type(t)
-        self._content_layout.addWidget(live2d_card)
-
-        self._content_layout.addSpacing(8)
-
-        note = QLabel(
-            "⚠ 注意：像素小人角色和 Live2D 模型是不同类型，导入后不能混用。",
-            self._content_widget,
-        )
-        note.setStyleSheet("color: #ff9800; font-size: 12px;")
-        self._content_layout.addWidget(note)
+        self._content_layout.addSpacing(16)
 
         self._content_layout.addStretch()
 
@@ -295,13 +258,8 @@ class ImportWizard(QDialog):
         title.setStyleSheet(_TITLE_STYLE)
         self._content_layout.addWidget(title)
 
-        type_label = {
-            "pixel": "像素小人角色",
-            "live2d": "Live2D 模型",
-        }
         desc = QLabel(
-            f"当前类型: {type_label.get(self._import_type, '未知')}\n"
-            "请选择包含模型文件的文件夹（包含 actions/ 或 .model3.json 的目录）。",
+            "请选择包含模型文件的文件夹（包含 actions/ 的目录）。",
             self._content_widget,
         )
         desc.setStyleSheet(_DESC_STYLE)
@@ -362,7 +320,6 @@ class ImportWizard(QDialog):
         title.setStyleSheet(_TITLE_STYLE)
         self._content_layout.addWidget(title)
 
-        # 进行校验
         self._validation_report = ModelValidator.validate(self._source_dir)
         report = self._validation_report
         is_valid = report.get("valid", False)
@@ -610,16 +567,10 @@ class ImportWizard(QDialog):
         display_name = self._name_input.text().strip() or target_id
 
         try:
-            if self._import_type == "pixel":
-                result = ModelImporter.import_model(
-                    self._source_dir, target_id, self._config,
-                    display_name=display_name,
-                )
-            elif self._import_type == "live2d":
-                # Live2D 导入（暂用占位，Phase 4 实现）
-                result = self._import_live2d_placeholder(target_id, display_name)
-            else:
-                raise ValueError(f"未知导入类型: {self._import_type}")
+            result = ModelImporter.import_model(
+                self._source_dir, target_id, self._config,
+                display_name=display_name,
+            )
 
             self._import_result = result
             self._progress_bar.setRange(0, 100)
@@ -642,13 +593,6 @@ class ImportWizard(QDialog):
             self._next_btn.setEnabled(True)
             self._next_btn.clicked.disconnect()
             self._next_btn.clicked.connect(lambda: self._render_step(3))
-
-    def _import_live2d_placeholder(self, target_id: str, display_name: str) -> dict:
-        """
-        Live2D 导入占位实现。
-        在 Phase 4 中会被替换为真正的 Live2DImporter。
-        """
-        raise NotImplementedError("Live2D 导入功能将在后续版本实现")
 
     def _go_to_step6(self) -> None:
         """自动跳转到步骤 6。"""
@@ -698,16 +642,21 @@ class ImportWizard(QDialog):
 
     def _on_set_current(self) -> None:
         """设置导入的模型为当前角色。"""
-        if self._import_result:
-            ModelRegistry.set_default(self._config, self._import_result["id"])
-            self.model_imported.emit(self._import_result["id"])
-            QMessageBox.information(self, "成功",
-                f"已将「{self._import_result.get('name', '')}」设为当前角色。")
+        if not self._import_result:
+            return
+        model_id = self._import_result if isinstance(self._import_result, str) else self._import_result.get("id", "")
+        if model_id:
+            ModelRegistry.set_default(self._config, model_id)
+            self.model_imported.emit(model_id)
+            QMessageBox.information(self, "成功", f"已将模型「{model_id}」设为当前角色。")
 
     def _on_finish(self) -> None:
         """完成导入，关闭向导。"""
-        if self._import_result:
-            self.model_imported.emit(self._import_result["id"])
+        if not self._import_result:
+            return
+        model_id = self._import_result if isinstance(self._import_result, str) else self._import_result.get("id", "")
+        if model_id:
+            self.model_imported.emit(model_id)
         self.accept()
 
     # ── 导航按钮 ────────────────────────────────────────────

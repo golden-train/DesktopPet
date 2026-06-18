@@ -20,11 +20,6 @@ from pathlib import Path
 from typing import Optional
 from datetime import datetime
 
-# Live2D WebGL 支持：强制 Chromium 启用 WebGL（Win10 默认禁用本地 WebGL）
-os.environ.setdefault(
-    "QTWEBENGINE_CHROMIUM_FLAGS",
-    "--ignore-gpu-blocklist --enable-webgl --disable-gpu-sandbox"
-)
 
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer
@@ -45,7 +40,6 @@ from src.ai.prompts import ANIMATION_MARKERS
 from src.voice.service import VoiceService
 from src.extends import ExtensionRegistry
 from qfluentwidgets import setTheme, Theme
-from src.live2d.server import Live2DServer
 from src.character.walking import WalkingController
 from src.window.loading_window import LoadingWindow
 from src.window.popup_window import PopupWindow
@@ -123,14 +117,8 @@ class DesktopPetApplication:
         # 9. 延迟显示的窗口
         self.management_window: Optional[ManagementWindow] = None
         self.chat_window: Optional[ChatWindow] = None
-        self.live2d_viewer: Optional[Live2DViewer] = None
 
-        # 10. Live2D 服务器
-        self.live2d_server = Live2DServer()
-        self.live2d_server.start()
-        self._loading.set_status("启动服务…")
-
-        # 11. 连接信号
+        # 10. 连接信号
         self._connect_signals()
 
         # 12. 扩展系统
@@ -194,7 +182,7 @@ class DesktopPetApplication:
             scaling = 1.0
             self.config.set("main", "scaling", 1.0)
         self.main_window.set_scaling(scaling)
-        # 记录背景配置（后续 PopupWindow / Live2D 使用）
+        # 记录背景配置
         self._bg_image = self.config.get("main", "currentBgImage", "")
 
     def _connect_signals(self) -> None:
@@ -207,9 +195,6 @@ class DesktopPetApplication:
         )
         self.main_window.chat_requested.connect(
             self._open_chat
-        )
-        self.main_window.live2d_requested.connect(
-            self._open_live2d
         )
         self.main_window.walking_toggled.connect(
             self._toggle_walking
@@ -350,11 +335,7 @@ class DesktopPetApplication:
         logger.info("用户请求退出")
         # 停止所有扩展
         ExtensionRegistry.stop_all()
-        # 停止 Live2D 服务器
-        self.live2d_server.stop()
         # 清理子窗口
-        if self.live2d_viewer and self.live2d_viewer.isVisible():
-            self.live2d_viewer.close()
         if self.chat_window and self.chat_window.isVisible():
             self.chat_window.close()
         if self.management_window and self.management_window.isVisible():
@@ -427,24 +408,6 @@ class DesktopPetApplication:
             # 角色走过去
             anim = self.main_window.animate_to(char_x, char_y, duration=1000)
             anim.finished.connect(self.chat_window.show)
-
-    def _open_live2d(self) -> None:
-        """打开 Live2D 查看器（隐藏角色窗口）。"""
-        if self.live2d_viewer is None:
-            from src.live2d.viewer import Live2DViewer
-            self.live2d_viewer = Live2DViewer(self.live2d_server)
-            self.live2d_viewer.closed.connect(self._on_live2d_closed)
-        if self.live2d_viewer.isVisible():
-            self.live2d_viewer.raise_()
-            self.live2d_viewer.activateWindow()
-        else:
-            self.main_window.hide()
-            self.live2d_viewer.show()
-
-    def _on_live2d_closed(self) -> None:
-        """Live2D 关闭时恢复角色窗口。"""
-        self.main_window.show()
-        logger.info("Live2D 查看器已关闭")
 
     # ── AI 回复处理（文档 §4.3）────────────────────────────
 
